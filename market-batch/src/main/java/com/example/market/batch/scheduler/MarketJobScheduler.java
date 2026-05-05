@@ -28,7 +28,7 @@ import java.time.Clock;
  * 실행한다.</p>
  */
 @Component
-@Profile("!test-without-scheduler")
+@Profile({"prod", "scheduler"})   // 운영 + 명시 활성화 시만. dev/it 에서는 비활성
 public class MarketJobScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(MarketJobScheduler.class);

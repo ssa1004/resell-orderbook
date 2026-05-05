@@ -5,6 +5,7 @@ import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
 import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -19,6 +20,7 @@ import javax.sql.DataSource;
 @Configuration
 @EnableScheduling
 @EnableSchedulerLock(defaultLockAtMostFor = "PT30M")
+@Profile({"prod", "scheduler"})
 public class ShedLockConfig {
 
     @Bean
