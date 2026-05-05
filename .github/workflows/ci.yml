@@ -35,6 +35,14 @@ jobs:
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - name: e2e (Postgres Testcontainer)
         run: ./gradlew :e2e-tests:test --no-daemon
+      - name: Upload e2e reports (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-reports
+          path: |
+            e2e-tests/build/reports/tests/**
+            e2e-tests/build/test-results/**
 
   static-analysis:
     name: Static analysis (compile -Xlint:all)

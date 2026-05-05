@@ -1,7 +1,9 @@
 package com.example.market.adapter.ws
 
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.messaging.simp.config.MessageBrokerRegistry
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer
@@ -33,6 +35,19 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 class StompConfig : WebSocketMessageBrokerConfigurer {
 
+    /**
+     * STOMP heartbeat 발사용 scheduler.
+     * `setHeartbeatValue` 만 켜고 scheduler 가 없으면 SimpleBrokerMessageHandler 가
+     * `Assert.notNull(taskScheduler, ...)` 으로 startup 시 IllegalArgumentException.
+     */
+    @Bean
+    fun stompHeartbeatScheduler(): ThreadPoolTaskScheduler =
+        ThreadPoolTaskScheduler().apply {
+            poolSize = 1
+            setThreadNamePrefix("stomp-heartbeat-")
+            initialize()
+        }
+
     override fun registerStompEndpoints(registry: StompEndpointRegistry) {
         registry.addEndpoint("/ws")
             .setAllowedOriginPatterns("*")
@@ -44,6 +59,7 @@ class StompConfig : WebSocketMessageBrokerConfigurer {
         registry.enableSimpleBroker("/topic", "/queue")
             .setHeartbeatValue(longArrayOf(10_000, 10_000))
             // 양방향 10초 heartbeat → idle / 망가진 connection 빠른 탐지
+            .setTaskScheduler(stompHeartbeatScheduler())
 
         // 클라이언트 → 서버 메시지 (현재는 사용 안 하지만 향후 확장 대비)
         registry.setApplicationDestinationPrefixes("/app")
