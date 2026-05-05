@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(classes = MarketApplication.class)
 @ActiveProfiles("it")
-class FullTradeLifecycleIT {
+class FullTradeLifecycleIT extends E2ECleanupSupport {
 
     private static final Currency KRW = Currency.getInstance("KRW");
 
