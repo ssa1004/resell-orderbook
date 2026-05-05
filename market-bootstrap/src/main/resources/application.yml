@@ -1,0 +1,154 @@
+spring:
+  application:
+    name: resell-market-platform
+  profiles:
+    default: dev
+  autoconfigure:
+    # dev 기본값 — Redis/Redisson/Kafka 비활성 (외부 의존 없이 H2 만으로 부팅)
+    exclude:
+      - org.redisson.spring.starter.RedissonAutoConfigurationV2
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:market;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.batch_size: 50
+      hibernate.order_inserts: true
+      hibernate.order_updates: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false                   # Spring Batch jobs 는 명시 trigger 만
+  kafka:
+    bootstrap-servers: ""        # 빈 값 = consumer 비활성 (dev)
+    consumer:
+      group-id: market
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+server:
+  port: 8080
+
+springdoc:
+  swagger-ui:
+    path: /swagger
+  api-docs:
+    path: /v3/api-docs
+
+management:
+  endpoints:
+    web.exposure.include: health,info,metrics,prometheus,modulith
+  endpoint:
+    health.probes.enabled: true
+  metrics:
+    tags.application: ${spring.application.name}
+  tracing:
+    sampling.probability: 1.0
+
+# ── 도메인 정책 ───────────────────────────────
+market:
+  pg:
+    enabled: false               # dev: MockPgClient
+    base-url: ${PG_BASE_URL:http://wiremock:8090}
+  bank:
+    enabled: false               # dev: MockBankTransferClient
+  storage:
+    s3-enabled: false
+    bucket: ${S3_BUCKET:resell-market-dev}
+  cache:
+    redis-enabled: false
+  security:
+    jwt:
+      enabled: false
+  idempotency:
+    ttl-hours: 24
+  advisory-lock:
+    enabled: false               # H2 미지원 — prod (Postgres) 만 true
+  outbox:
+    relay:
+      enabled: false             # dev: kafka 비활성, prod: true
+      poll-interval-ms: 1000
+      batch-size: 100
+      send-timeout-ms: 5000
+      topic-prefix: "market."
+  trade:
+    payment-ttl-minutes: 15
+  fee:
+    currency: KRW
+    seller-commission-rate: 3.0
+    buyer-commission-rate: 3.5
+    inspection-fee: 3000
+    shipping-fee: 3000
+    fixed-processing-fee: 1000
+
+# Resilience4j (PG)
+resilience4j:
+  circuitbreaker:
+    instances:
+      pg:
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+  retry:
+    instances:
+      pg:
+        maxAttempts: 3
+        waitDuration: 200ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+
+---
+spring:
+  config:
+    activate.on-profile: prod
+  autoconfigure:
+    exclude: []                  # prod 는 모두 enable
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:market}
+    username: ${DB_USER:market}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH_ISSUER_URI}
+
+market:
+  pg:
+    enabled: true
+  bank:
+    enabled: true
+  storage:
+    s3-enabled: true
+  cache:
+    redis-enabled: true
+  security:
+    jwt:
+      enabled: true
+  advisory-lock:
+    enabled: true
+  outbox:
+    relay:
+      enabled: true
