@@ -1,0 +1,56 @@
+package com.example.market.application.service;
+
+import com.example.market.application.command.SellNowCommand;
+import com.example.market.application.port.in.SellNowUseCase;
+import com.example.market.application.port.out.BidRepository;
+import com.example.market.application.port.out.EventPublisher;
+import com.example.market.application.port.out.FeePolicyProvider;
+import com.example.market.application.port.out.IdempotencyKeyStore;
+import com.example.market.application.port.out.OrderBookQueryPort;
+import com.example.market.application.port.out.TradeRepository;
+import com.example.market.domain.trading.Bid;
+import com.example.market.domain.trading.MatchEngine;
+import com.example.market.domain.trading.Trade;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.Instant;
+
+/** 즉시 판매. Highest BID 직접 매도. */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class SellNowService implements SellNowUseCase {
+
+    private final BidRepository bids;
+    private final TradeRepository trades;
+    private final OrderBookQueryPort orderBook;
+    private final EventPublisher events;
+    private final IdempotencyKeyStore idempotencyKeys;
+    private final FeePolicyProvider feePolicyProvider;
+    private final Clock clock;
+
+    @Override
+    @Transactional
+    public Trade sellNow(SellNowCommand cmd) {
+        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        Instant now = clock.instant();
+
+        orderBook.acquireSkuLock(cmd.skuId());
+
+        Bid bid = orderBook.findHighestBidForUpdate(cmd.skuId(), now)
+                .orElseThrow(() -> new IllegalStateException("no active BID for sku " + cmd.skuId()));
+
+        Trade trade = MatchEngine.sellNow(bid, cmd.sellerId(), feePolicyProvider.current(), now);
+        bid.markMatched(trade.id());
+        bids.save(bid);
+        trades.save(trade);
+        events.publish(trade.matched(now));
+        log.info("sellNow matched trade={} seller={} bid={} price={}",
+                trade.id(), cmd.sellerId(), bid.id(), trade.price());
+        return trade;
+    }
+}
