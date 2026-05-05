@@ -21,7 +21,7 @@ class OrderBookEventBroadcaster(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @KafkaListener(topics = [
-        "market.trademetched",
+        "market.tradematched",
         "market.listingplaced", "market.bidplaced",
         "market.listingcancelled", "market.bidcancelled",
     ], groupId = "orderbook-broadcaster")

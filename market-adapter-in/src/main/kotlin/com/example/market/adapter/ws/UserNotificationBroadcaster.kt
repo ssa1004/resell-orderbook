@@ -31,10 +31,10 @@ class UserNotificationBroadcaster(
 
     @KafkaListener(
         topics = [
-            "market.trademetched",
+            "market.tradematched",
             "market.paymentauthorized", "market.paymentrejected",
             "market.inspectionpassed", "market.inspectionfailed",
-            "market.tradecompleted", "market.refundissued",
+            "market.tradecompleted", "market.refundingstarted",
         ],
         groupId = "stomp-user-notifier",
     )

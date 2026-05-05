@@ -35,7 +35,7 @@ class StompOrderBookBroadcaster(
 
     @KafkaListener(
         topics = [
-            "market.trademetched",
+            "market.tradematched",
             "market.listingplaced", "market.bidplaced",
             "market.listingcancelled", "market.bidcancelled",
         ],

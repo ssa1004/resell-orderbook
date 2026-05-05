@@ -33,8 +33,7 @@ class TradingSagaConsumer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @KafkaListener(topics = ["market.trademetched", "market.trade-matched", "market.trade.matched"],
-                   groupId = "saga-authorize")
+    @KafkaListener(topics = ["market.tradematched"], groupId = "saga-authorize")
     fun onTradeMatched(payload: String) {
         val node = objectMapper.readTree(payload)
         val tradeId = TradeId.of(node.get("tradeId").get("value").asText())
