@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:    { branches: [main] }
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Build + Unit + Slice tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21', cache: gradle }
+      - name: Build + test (excluding e2e)
+        run: ./gradlew test -x :e2e-tests:test --no-daemon
+      - name: Modulith verify (도메인 경계 검증)
+        run: ./gradlew :market-bootstrap:test --no-daemon
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: '**/build/reports/tests/**'
+
+  e2e:
+    name: e2e Testcontainers
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21', cache: gradle }
+      - name: e2e (Postgres Testcontainer)
+        run: ./gradlew :e2e-tests:test --no-daemon
+
+  static-analysis:
+    name: Static analysis (compile -Xlint:all)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21', cache: gradle }
+      - run: ./gradlew compileJava compileKotlin --no-daemon
+
+  image:
+    name: Docker image build + Trivy scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [test, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21', cache: gradle }
+      - name: Build bootJar
+        run: ./gradlew :market-bootstrap:bootJar --no-daemon
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build image
+        run: |
+          docker build -t resell-orderbook:${{ github.sha }} \
+            -f infrastructure/Dockerfile .
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: resell-orderbook:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true

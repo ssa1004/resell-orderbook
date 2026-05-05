@@ -88,7 +88,7 @@ class MatchEngineTest {
         assertThat(MatchEngine.matchNewAsk(ask, Optional.of(bid), KREAM_LIKE, NOW)).isEmpty();
     }
 
-    // ── (보강 항목 2) 만료된 호가 거름 ──────────────────────────────
+    // ── 만료된 호가 거름 ──────────────────────────────
 
     @Test
     void newAsk_expiredBid_doesNotMatch_evenIfStillActiveStatus() {

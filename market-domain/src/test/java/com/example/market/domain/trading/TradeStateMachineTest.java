@@ -75,7 +75,7 @@ class TradeStateMachineTest {
         assertThat(t.status().isTerminal()).isTrue();
     }
 
-    /** 보강 항목 1: PG authorize 실패 시 CREATED → FAILED 직행. */
+    /** PG authorize 실패 시 CREATED → FAILED 직행. */
     @Test
     void cancelOnPaymentFailure_movesCreatedToFailed() {
         Trade t = newTrade();

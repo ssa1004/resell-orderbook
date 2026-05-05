@@ -13,7 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication(scanBasePackages = "com.example.market")
 @ConfigurationPropertiesScan(basePackages = "com.example.market")
-@Modulith(systemName = "resell-market-platform")
+@Modulith(systemName = "resell-orderbook")
 @EnableScheduling
 public class MarketApplication {
 

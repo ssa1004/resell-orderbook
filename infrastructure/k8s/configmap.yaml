@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: market-config
+  namespace: market
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  DB_HOST: "postgres.market.svc.cluster.local"
+  REDIS_HOST: "redis.market.svc.cluster.local"
+  KAFKA_BOOTSTRAP: "kafka.market.svc.cluster.local:9092"
+  PG_BASE_URL: "https://pg-internal.example.com"
+  OAUTH_ISSUER_URI: "https://idp.example.com/realms/market"
+  S3_BUCKET: "resell-market-prod"

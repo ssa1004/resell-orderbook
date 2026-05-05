@@ -66,7 +66,6 @@ class ListingBidInvariantsTest {
 
     @Test
     void listing_cancelByOtherUser_throwsOwnershipViolation() {
-        // 보강 항목: 다른 사용자가 남의 Listing 을 취소 시도
         Listing l = Listing.place(SKU, SELLER, Money.of(BigDecimal.valueOf(100_000), KRW), NOW);
         UserId stranger = UserId.of("stranger");
         assertThatThrownBy(() -> l.cancel(stranger))
@@ -91,7 +90,7 @@ class ListingBidInvariantsTest {
 
     @Test
     void isMatchableAt_falseAfterExpiresEvenIfStillActive() {
-        // 보강 항목 2: status=ACTIVE 이지만 expiresAt 지난 시점은 매칭 불가
+        // status 가 아직 ACTIVE 라도 expiresAt 이 지난 시점에는 매칭 대상에서 제외돼야 한다
         Listing l = Listing.place(SKU, SELLER, Money.of(BigDecimal.valueOf(100_000), KRW), NOW);
         assertThat(l.isMatchableAt(NOW.plusSeconds(60))).isTrue();
         assertThat(l.isMatchableAt(NOW.plusSeconds(31L * 24 * 3600))).isFalse();

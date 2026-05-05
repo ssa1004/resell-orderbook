@@ -107,7 +107,7 @@ public class Trade {
         return new PaymentAuthorized(id, pgPaymentId, feeSnapshot.buyerCharge(), now);
     }
 
-    /** PG authorize 실패. CREATED → FAILED 직행. (보강 항목 1) */
+    /** PG authorize 실패 시 호출 — CREATED 상태에서 바로 FAILED 로 종착. */
     public PaymentRejected cancelOnPaymentFailure(String reason, Instant now) {
         require(TradeStatus.CREATED, "cancelOnPaymentFailure");
         this.status = TradeStatus.FAILED;

@@ -3,7 +3,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
-rootProject.name = "resell-market-platform"
+rootProject.name = "resell-orderbook"
 
 include(
     "market-domain",

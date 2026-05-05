@@ -1,6 +1,6 @@
 spring:
   application:
-    name: resell-market-platform
+    name: resell-orderbook
   profiles:
     default: dev
   autoconfigure:

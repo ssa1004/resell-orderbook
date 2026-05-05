@@ -21,14 +21,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Outbox 테이블의 unpublished row 를 polling → Kafka publish → markPublished.
+ * Outbox 테이블의 unpublished row 를 polling 해서 Kafka 로 발행하고 markPublished 한다.
  *
- * <p>중요한 결정:</p>
+ * <p>설계 메모:</p>
  * <ul>
- *   <li><strong>동기 send</strong> + Future.get(timeout) — 응답이 와야 markPublished. fire-and-forget X.</li>
- *   <li>markPublished 는 *별도 트랜잭션* — Kafka 성공한 row 만 commit.
- *       publish 실패 시 그 row 는 다음 polling 에서 재시도.</li>
- *   <li>topic = {@code "market." + eventType.toLowerCase()} (예: market.trademetched)</li>
+ *   <li>Kafka send 는 동기 (Future.get(timeout)). 응답이 와야 markPublished — fire-and-forget 안 함.</li>
+ *   <li>markPublished 는 별도 트랜잭션에서. Kafka 가 성공한 row 만 commit 되고, 실패 row 는
+ *       그대로 unpublished 로 남아 다음 polling 에서 자동 재시도.</li>
+ *   <li>topic 이름은 {@code "market." + eventType.toLowerCase()}.</li>
  * </ul>
  */
 @Component

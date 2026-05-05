@@ -18,7 +18,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Listing(ASK) row. OrderBook query 의 핵심 — (sku_id, status, expires_at, ask_price) 인덱스.
+ * Listing(ASK) row. (sku_id, status, expires_at, ask_price) 인덱스가 호가창 조회의 주 경로.
  */
 @Entity
 @Table(name = "listings", indexes = {

@@ -25,8 +25,8 @@ import java.util.Optional;
 public interface OrderBookQueryPort {
 
     /**
-     * SKU 단위 advisory lock. 트랜잭션 안에서 반드시 best 호가 조회 *전에* 호출해서
-     * 같은 SKU 동시 매칭을 직렬화. PostgreSQL pg_advisory_xact_lock 사용.
+     * SKU 단위 advisory lock. 트랜잭션 안에서 best 호가 조회 *이전에* 호출해 같은 SKU 동시 매칭을
+     * 직렬화한다. PostgreSQL {@code pg_advisory_xact_lock} 사용.
      */
     void acquireSkuLock(SkuId skuId);
 

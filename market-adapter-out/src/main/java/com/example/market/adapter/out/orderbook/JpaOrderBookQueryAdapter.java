@@ -22,13 +22,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * JPA 기반 OrderBook query 구현.
+ * JPA 기반 OrderBook 조회 어댑터.
  *
- * <p>핵심 — {@link #acquireSkuLock} 는 PostgreSQL 의 {@code pg_advisory_xact_lock} 사용.
- * 같은 SKU 의 매칭 흐름을 트랜잭션 단위로 직렬화 — deadlock 결정적 회피.</p>
+ * <p>{@link #acquireSkuLock} 는 PostgreSQL {@code pg_advisory_xact_lock} 으로 같은 SKU 의 매칭을
+ * 트랜잭션 단위로 직렬화한다. 같은 SKU 동시 매칭에 의한 데드락 가능성을 코드 레벨이 아닌
+ * DB 락으로 차단.</p>
  *
- * <p>H2 (dev) 에서는 advisory lock 이 지원 안 되므로 {@code market.advisory-lock.enabled=false}
- * 로 끄고 사용 (단일 인스턴스라 race 없음). prod 는 true.</p>
+ * <p>H2 (dev) 는 advisory lock 미지원이라 {@code market.advisory-lock.enabled=false} 로 두고,
+ * 락 없는 단순 조회로 동작한다 (단일 인스턴스라 race 없음). prod 는 true.</p>
  */
 @Component
 @Slf4j
