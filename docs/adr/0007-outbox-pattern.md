@@ -21,8 +21,8 @@
 - Kafka 가 다운돼도 outbox 에 누적됐다가 복구 후 일괄 publish.
 - at-least-once 보장이라 컨슈머가 멱등하면 충분하다.
 - 폴링 지연(기본 1초) 이 있다 — 더 짧은 실시간성이 필요하면 폴링 간격 조정.
-- Outbox 테이블이 시간이 지나면서 비대해진다 — published 된 row 는 N일 후 cleanup 배치 필요 (TODO).
+- Outbox 테이블이 시간이 지나면서 비대해진다 — 발행 완료 row 는 보관 기간이 지난 뒤 정리 배치로 삭제한다.
 
 ## 다른 선택지
 - **Spring Modulith Events (JPA 기반)**: 비슷한 효과지만 우리 Outbox 가 더 명시적이고 검증하기 쉽다.
-- **Debezium CDC**: 인프라 복잡도가 크고 ROI 가 낮다.
+- **Debezium CDC**: 현재 규모에서는 운영 복잡도에 비해 얻는 이점이 작다.

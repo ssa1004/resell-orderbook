@@ -12,7 +12,7 @@ import java.time.Duration;
 /**
  * Redis SETNX 기반 멱등성 키. 분산 환경 prod.
  *
- * <p>{@code SET wallet:idempotency:lock:<key> "1" NX EX <ttl>}.</p>
+ * <p>{@code SET market:idempotency:lock:<key> "1" NX EX <ttl>}.</p>
  */
 @Component
 @ConditionalOnProperty(name = "market.cache.redis-enabled", havingValue = "true")

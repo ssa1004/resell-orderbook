@@ -1,6 +1,7 @@
 package com.example.market.e2e;
 
 import com.example.market.MarketApplication;
+import com.example.market.application.command.AssignInspectorCommand;
 import com.example.market.application.command.AuthorizePaymentCommand;
 import com.example.market.application.command.BuyNowCommand;
 import com.example.market.application.command.CompleteTradeCommand;
@@ -10,6 +11,7 @@ import com.example.market.application.command.RecordInspectionResultCommand;
 import com.example.market.application.command.RecordSellerShippingCommand;
 import com.example.market.application.command.RegisterProductCommand;
 import com.example.market.application.command.StartBuyerShippingCommand;
+import com.example.market.application.port.in.AssignInspectorUseCase;
 import com.example.market.application.port.in.AuthorizePaymentUseCase;
 import com.example.market.application.port.in.BuyNowUseCase;
 import com.example.market.application.port.in.CompleteTradeUseCase;
@@ -71,6 +73,7 @@ class FullTradeLifecycleIT extends E2ECleanupSupport {
     @Autowired AuthorizePaymentUseCase authorizePayment;
     @Autowired RecordSellerShippingUseCase recordSellerShipping;
     @Autowired RecordInspectionArrivalUseCase recordInspectionArrival;
+    @Autowired AssignInspectorUseCase assignInspector;
     @Autowired RecordInspectionResultUseCase recordInspectionResult;
     @Autowired StartBuyerShippingUseCase startBuyerShipping;
     @Autowired CompleteTradeUseCase completeTrade;
@@ -118,12 +121,8 @@ class FullTradeLifecycleIT extends E2ECleanupSupport {
         assertThat(trades.findById(trade.id()).orElseThrow().status())
                 .isEqualTo(TradeStatus.INSPECTION_PENDING);
 
-        // 6. Inspector 배정 (assign 없이도 record 가능 — record 가 직접 PENDING/IN_PROGRESS 처리할까?)
-        //    실제로는 assign → record 순서. 여기서는 단순화 위해 assign 후 record.
-        var inspectorAssignSvc = (com.example.market.application.port.in.AssignInspectorUseCase)
-                applicationContext.getBean(com.example.market.application.port.in.AssignInspectorUseCase.class);
-        inspectorAssignSvc.assign(new com.example.market.application.command.AssignInspectorCommand(
-                inspection.id(), UserId.of("inspector-1")));
+        // 6. Inspector 배정
+        assignInspector.assign(new AssignInspectorCommand(inspection.id(), UserId.of("inspector-1")));
 
         // 7. Inspection PASS
         recordInspectionResult.record(new RecordInspectionResultCommand(
@@ -151,9 +150,6 @@ class FullTradeLifecycleIT extends E2ECleanupSupport {
         var savedPayout = payouts.findByTradeId(trade.id()).orElseThrow();
         assertThat(savedPayout.status()).isEqualTo(PayoutStatus.SENT);
     }
-
-    @Autowired
-    org.springframework.context.ApplicationContext applicationContext;
 
     private static Money money(long won) {
         return Money.of(BigDecimal.valueOf(won), KRW);

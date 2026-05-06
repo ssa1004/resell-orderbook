@@ -21,15 +21,15 @@ adapter-in  ─→ application (port.in 호출)
 adapter-out ─→ application (port.out 구현)
 ```
 
-- `domain` — Spring/JPA/Kafka 의존성 없음.
+- `domain` — 도메인 로직은 Spring/JPA/Kafka API 를 사용하지 않는다.
 - `application` — Spring `@Service`/`@Transactional` 만 사용하고, 외부는 `port.out` 인터페이스로 추상화.
 - `adapter-out` — JPA 엔티티, 매퍼, 어댑터가 도메인을 엔티티로 변환하고 다시 복원한다.
 
 ## 장단점
 - 도메인 단위 테스트가 `Money`, `Listing`, `Trade` 만으로 가능 — Spring 컨텍스트가 필요 없어 millisecond 단위로 끝난다.
 - JPA 를 JOOQ 또는 R2DBC 로 바꿀 때 도메인 코드는 변경하지 않아도 된다.
-- 매퍼 코드 boilerplate 가 늘어난다.
+- 매퍼 반복 코드가 늘어난다.
 - 신규 인원이 "엔티티와 도메인이 왜 따로 있는지" 학습 비용이 있다.
 
 ## 다시 검토할 시점
-도메인이 거의 CRUD 만 하는 단순 모듈이라면 over-engineering 이 될 수 있다. 그런 모듈만 단순 layered 구조로 갈 수도 있다.
+도메인이 거의 CRUD 만 하는 단순 모듈이라면 구조가 과할 수 있다. 그런 모듈만 단순 계층형 구조로 갈 수도 있다.

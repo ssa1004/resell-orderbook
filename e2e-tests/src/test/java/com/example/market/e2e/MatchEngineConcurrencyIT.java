@@ -47,8 +47,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   <li>advisory_xact_lock + FOR UPDATE SKIP LOCKED 가 의도대로 작동</li>
  * </ul>
  *
- * <p>본 테스트가 통과한다는 것은: 여러 판매자가 동시에 같은 BID 를 잡으려 해도 절대 두 번
- * 체결되지 않음을 의미. 시니어 면접에서 동시성 처리 검증 시연용.</p>
+ * <p>여러 판매자가 동시에 같은 BID 를 잡으려 해도 체결이 한 번만 생성되는지 검증한다.</p>
  */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(classes = MarketApplication.class)

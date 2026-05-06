@@ -14,7 +14,7 @@
 | [0008](0008-idempotency-redis-nx.md) | 멱등성 처리 이원화 — 사용자 요청은 Redis NX, 시스템 트리거는 상태 체크 | 적용 |
 | [0009](0009-resilience4j-pg.md) | PG 호출에 Resilience4j Circuit Breaker 적용 | 적용 |
 | [0010](0010-spring-batch.md) | Spring Batch — 만료 호가 정리 + 결제 TTL 초과 거래 자동 취소 | 적용 |
-| [0011](0011-websocket-orderbook-stream.md) | 실시간 호가창은 WebSocket 으로 push | 적용 |
+| [0011](0011-websocket-orderbook-stream.md) | 실시간 호가창은 WebSocket 으로 push | ADR-0014로 보완 |
 | [0012](0012-fee-snapshot.md) | FeeSnapshot — 거래 시점의 수수료를 거래 데이터에 박아두기 | 적용 |
 | [0013](0013-batch-scheduling-shedlock.md) | Batch Job 스케줄링 — `@Scheduled` + ShedLock | 적용 |
 | [0014](0014-stomp-over-raw-websocket.md) | STOMP 도입 — raw WebSocket 보완 | 적용 |

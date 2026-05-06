@@ -8,6 +8,8 @@ import com.example.market.domain.trading.TradeId;
  * Adapter-in 이 HTTP 403 으로 매핑.
  */
 public class UnauthorizedTradeOperationException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
     public UnauthorizedTradeOperationException(TradeId tradeId, UserId requestor, String op) {
         super("trade " + tradeId + " — requestor " + requestor + " not authorized for " + op);
     }

@@ -11,6 +11,8 @@ public interface IdempotencyKeyStore {
     void acquireOrThrow(String key);
 
     class DuplicateRequestException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public DuplicateRequestException(String key) {
             super("duplicate request key: " + key);
         }

@@ -1,4 +1,4 @@
-// Outbound adapter — Persistence(JPA), OrderBook(Redis Sorted Set + Redisson), PG, Messaging(Kafka + Outbox), Storage(S3)
+// Outbound adapter — Persistence(JPA), OrderBook query, Redis, PG, Messaging(Kafka + Outbox), Storage(S3)
 plugins {
     `java-library`
 }
@@ -14,7 +14,7 @@ dependencies {
     runtimeOnly("com.h2database:h2")
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
 
-    // OrderBook — Redis Sorted Set + 분산락
+    // Redis support — idempotency key store, cache infrastructure
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.redisson:redisson-spring-boot-starter:3.34.1")
 

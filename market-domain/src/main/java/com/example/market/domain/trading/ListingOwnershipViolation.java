@@ -7,6 +7,8 @@ import com.example.market.domain.shared.UserId;
  * Application 레이어에서 catch 해서 HTTP 403 으로 매핑.
  */
 public class ListingOwnershipViolation extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
     public ListingOwnershipViolation(ListingId listingId, UserId owner, UserId requestor) {
         super("listing " + listingId + " owned by " + owner + " — requestor " + requestor + " forbidden");
     }

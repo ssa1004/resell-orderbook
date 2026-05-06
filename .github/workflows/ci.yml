@@ -1,7 +1,7 @@
 name: CI
 
-# TODO: 포폴 단계 동안 push / PR trigger 잠시 OFF (수동 trigger 만 유지).
-#       자동 trigger 복원 시 아래 push / pull_request 블록 주석 해제.
+# push / PR trigger 는 현재 수동 검증용으로 비활성화했다.
+# 자동 검증이 필요하면 아래 push / pull_request 블록을 활성화한다.
 on:
   workflow_dispatch:
   # push:    { branches: [main] }
