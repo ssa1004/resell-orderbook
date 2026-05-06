@@ -1,5 +1,6 @@
 package com.example.market.adapter.ws
 
+import com.example.market.adapter.kafka.MarketTopic
 import com.example.market.adapter.web.dto.OrderBookView
 import com.example.market.application.port.`in`.OrderBookQueryUseCase
 import com.example.market.domain.catalog.SkuId
@@ -35,9 +36,9 @@ class StompOrderBookBroadcaster(
 
     @KafkaListener(
         topics = [
-            "market.tradematched",
-            "market.listingplaced", "market.bidplaced",
-            "market.listingcancelled", "market.bidcancelled",
+            MarketTopic.TRADE_MATCHED,
+            MarketTopic.LISTING_PLACED, MarketTopic.BID_PLACED,
+            MarketTopic.LISTING_CANCELLED, MarketTopic.BID_CANCELLED,
         ],
         groupId = "stomp-orderbook-broadcaster",
     )

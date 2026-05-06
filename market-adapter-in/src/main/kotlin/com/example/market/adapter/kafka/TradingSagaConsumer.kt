@@ -33,7 +33,7 @@ class TradingSagaConsumer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    @KafkaListener(topics = ["market.tradematched"], groupId = "saga-authorize")
+    @KafkaListener(topics = [MarketTopic.TRADE_MATCHED], groupId = "saga-authorize")
     fun onTradeMatched(payload: String) {
         val node = objectMapper.readTree(payload)
         val tradeId = TradeId.of(node.get("tradeId").get("value").asText())
@@ -41,7 +41,7 @@ class TradingSagaConsumer(
         authorizePayment.authorize(AuthorizePaymentCommand(tradeId))
     }
 
-    @KafkaListener(topics = ["market.inspectionpassed"], groupId = "saga-buyer-shipping")
+    @KafkaListener(topics = [MarketTopic.INSPECTION_PASSED], groupId = "saga-buyer-shipping")
     fun onInspectionPassed(payload: String) {
         val node = objectMapper.readTree(payload)
         val tradeId = TradeId.of(node.get("tradeId").get("value").asText())
@@ -49,7 +49,7 @@ class TradingSagaConsumer(
         startBuyerShipping.start(StartBuyerShippingCommand(tradeId, "AUTO-" + tradeId))
     }
 
-    @KafkaListener(topics = ["market.inspectionfailed"], groupId = "saga-refund")
+    @KafkaListener(topics = [MarketTopic.INSPECTION_FAILED], groupId = "saga-refund")
     fun onInspectionFailed(payload: String) {
         val node = objectMapper.readTree(payload)
         val tradeId = TradeId.of(node.get("tradeId").get("value").asText())
@@ -57,7 +57,7 @@ class TradingSagaConsumer(
         refundBuyer.refund(tradeId)
     }
 
-    @KafkaListener(topics = ["market.tradecompleted"], groupId = "saga-settle")
+    @KafkaListener(topics = [MarketTopic.TRADE_COMPLETED], groupId = "saga-settle")
     fun onTradeCompleted(payload: String) {
         val node = objectMapper.readTree(payload)
         val tradeId = TradeId.of(node.get("tradeId").get("value").asText())

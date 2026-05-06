@@ -1,5 +1,6 @@
 package com.example.market.adapter.ws
 
+import com.example.market.adapter.kafka.MarketTopic
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -31,10 +32,10 @@ class UserNotificationBroadcaster(
 
     @KafkaListener(
         topics = [
-            "market.tradematched",
-            "market.paymentauthorized", "market.paymentrejected",
-            "market.inspectionpassed", "market.inspectionfailed",
-            "market.tradecompleted", "market.refundingstarted",
+            MarketTopic.TRADE_MATCHED,
+            MarketTopic.PAYMENT_AUTHORIZED, MarketTopic.PAYMENT_REJECTED,
+            MarketTopic.INSPECTION_PASSED, MarketTopic.INSPECTION_FAILED,
+            MarketTopic.TRADE_COMPLETED, MarketTopic.REFUNDING_STARTED,
         ],
         groupId = "stomp-user-notifier",
     )

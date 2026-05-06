@@ -1,5 +1,6 @@
 package com.example.market.adapter.ws
 
+import com.example.market.adapter.kafka.MarketTopic
 import com.example.market.domain.catalog.SkuId
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
@@ -21,9 +22,9 @@ class OrderBookEventBroadcaster(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @KafkaListener(topics = [
-        "market.tradematched",
-        "market.listingplaced", "market.bidplaced",
-        "market.listingcancelled", "market.bidcancelled",
+        MarketTopic.TRADE_MATCHED,
+        MarketTopic.LISTING_PLACED, MarketTopic.BID_PLACED,
+        MarketTopic.LISTING_CANCELLED, MarketTopic.BID_CANCELLED,
     ], groupId = "orderbook-broadcaster")
     fun onOrderBookChanged(payload: String) {
         runCatching {
