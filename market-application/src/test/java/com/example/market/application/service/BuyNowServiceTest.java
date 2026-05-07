@@ -49,6 +49,7 @@ class BuyNowServiceTest {
     private EventPublisher events;
     private IdempotencyKeyStore idempotency;
     private FeePolicyProvider feeProvider;
+    private com.example.market.application.port.out.PriceTickRepository priceTicks;
     private BuyNowService service;
 
     @BeforeEach
@@ -59,9 +60,10 @@ class BuyNowServiceTest {
         events = mock(EventPublisher.class);
         idempotency = mock(IdempotencyKeyStore.class);
         feeProvider = mock(FeePolicyProvider.class);
+        priceTicks = mock(com.example.market.application.port.out.PriceTickRepository.class);
         when(feeProvider.current()).thenReturn(POLICY);
         service = new BuyNowService(listings, trades, orderBook, events, idempotency, feeProvider,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                priceTicks, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test

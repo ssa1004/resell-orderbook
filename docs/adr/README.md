@@ -18,3 +18,4 @@
 | [0012](0012-fee-snapshot.md) | FeeSnapshot — 거래 시점의 수수료를 거래 데이터에 박아두기 | 적용 |
 | [0013](0013-batch-scheduling-shedlock.md) | Batch Job 스케줄링 — `@Scheduled` + ShedLock | 적용 |
 | [0014](0014-stomp-over-raw-websocket.md) | STOMP 도입 — raw WebSocket 보완 | 적용 |
+| [0015](0015-market-data-time-series.md) | Market Data — 시세 시계열 + 통계 read API | 적용 |

@@ -63,6 +63,7 @@ class PlaceListingServiceTest {
     private EventPublisher events;
     private IdempotencyKeyStore idempotency;
     private FeePolicyProvider feeProvider;
+    private com.example.market.application.port.out.PriceTickRepository priceTicks;
     private PlaceListingService service;
 
     @BeforeEach
@@ -74,9 +75,10 @@ class PlaceListingServiceTest {
         events = mock(EventPublisher.class);
         idempotency = mock(IdempotencyKeyStore.class);
         feeProvider = mock(FeePolicyProvider.class);
+        priceTicks = mock(com.example.market.application.port.out.PriceTickRepository.class);
         when(feeProvider.current()).thenReturn(POLICY);
         service = new PlaceListingService(listings, bids, trades, orderBook,
-                events, idempotency, feeProvider, CLOCK);
+                events, idempotency, feeProvider, priceTicks, CLOCK);
     }
 
     @Test
