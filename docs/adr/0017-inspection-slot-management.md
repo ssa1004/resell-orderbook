@@ -5,7 +5,7 @@
 
 ## 배경
 
-한정판 sneaker 리셀의 *진짜 차별점* — 정품 검수. 셀러가 매물을 검수센터로 보내면 검수원이
+한정판 sneaker 리셀에서 정품 검수 단계가 필요. 셀러가 매물을 검수센터로 보내면 검수원이
 가품 / 손상 여부를 판정. 이 검수가 시간이 걸리고 (한 켤레당 ~30분), 검수원 수에 한계가 있어
 *예약 시스템* 이 필요. 매일 검수 capacity 가 한정되어 있는데 거래 트래픽이 몰리면 *언제 매물을
 가져올 수 있는지* 사용자가 미리 알아야 셀러가 발송 일정 잡을 수 있음.
@@ -49,13 +49,13 @@ active appointment (현재 자리를 차지하고 있는 예약) 카운트* 로 
 
 ### Over-booking (정원 초과 예약) 방지 — advisory lock
 
-가장 까다로운 부분. SELECT COUNT 와 INSERT 사이의 경쟁 구간 (race window):
+SELECT COUNT 와 INSERT 사이에 경쟁 구간 (race window) 이 생긴다:
 
 ```
 Thread A: COUNT → 4 (capacity 5)
 Thread B: COUNT → 4
 Thread A: INSERT → ok
-Thread B: INSERT → ok   ← 6 → over-booking!
+Thread B: INSERT → ok   ← 6 → over-booking
 ```
 
 해결: `pg_advisory_xact_lock(hash(centerId, slotStart))` — PostgreSQL 의 응용 락 (테이블/행이

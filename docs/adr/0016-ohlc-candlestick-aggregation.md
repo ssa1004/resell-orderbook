@@ -130,14 +130,14 @@ GET /api/v1/market/ohlc/{skuId}?period=ONE_HOUR&from=...&to=...&limit=24
 - 차트 응답 가벼움 — 24h 1분 candle = 1440 행, 1주 1시간 candle = 168 행
 - 인덱스 1개 (`sku_id, period, bucket_start DESC`) 가 모든 차트 쿼리 처리
 - Append-only + UNIQUE 로 멱등성 + 정합 — 배치 재실행 안전
-- (단점) 약 1분 지연 — 진짜 실시간 (틱 단위) 차트는 추가 스트리밍 필요
+- (단점) 약 1분 지연 — 틱 단위 실시간 차트가 필요하면 별도 스트리밍 추가
 - (단점) period 별 row 수 누적 — ONE_MIN 1년 = SKU 1개당 525,600 행. partition (테이블을
   월 단위 등으로 쪼개 저장) 검토.
 
 ## 후속 후보
 
 - WebSocket / STOMP 로 *닫힌 candle* push (`market.ohlc.{period}`)
-- 진행 중 bucket 의 부분 candle (메모리 안 aggregator 로 계산) — 진짜 실시간 차트
+- 진행 중 bucket 의 부분 candle (메모리 안 aggregator 로 계산) — 틱 단위 실시간 차트
 - TimescaleDB continuous aggregate — 데이터 폭증 시
 - 거래량 가중 평균가 (VWAP, Volume Weighted Average Price) / 이동평균 (SMA: 단순 이동평균,
   EMA: 지수 이동평균) — 보조 지표
