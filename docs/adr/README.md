@@ -20,3 +20,4 @@
 | [0014](0014-stomp-over-raw-websocket.md) | STOMP 도입 — raw WebSocket 보완 | 적용 |
 | [0015](0015-market-data-time-series.md) | Market Data — 시세 시계열 + 통계 read API | 적용 |
 | [0016](0016-ohlc-candlestick-aggregation.md) | OHLC 캔들스틱 사전 집계 (Market Data 후속) | 적용 |
+| [0017](0017-inspection-slot-management.md) | Inspection Slot Management — capacity 기반 검수 예약 | 적용 |
