@@ -2,9 +2,12 @@ package com.example.market.application.service;
 
 import com.example.market.application.port.in.MarketDataQueryUseCase;
 import com.example.market.application.port.in.OrderBookQueryUseCase;
+import com.example.market.application.port.out.OhlcCandleRepository;
 import com.example.market.application.port.out.PriceTickRepository;
 import com.example.market.domain.catalog.SkuId;
 import com.example.market.domain.marketdata.MarketStats;
+import com.example.market.domain.marketdata.OhlcCandle;
+import com.example.market.domain.marketdata.OhlcPeriod;
 import com.example.market.domain.marketdata.PriceTick;
 import com.example.market.domain.shared.Money;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +37,7 @@ public class MarketDataQueryService implements MarketDataQueryUseCase {
     private static final Duration WINDOW_24H = Duration.ofHours(24);
 
     private final PriceTickRepository ticks;
+    private final OhlcCandleRepository candles;
     private final OrderBookQueryUseCase orderBookQuery;
     private final Clock clock;
 
@@ -68,5 +72,10 @@ public class MarketDataQueryService implements MarketDataQueryUseCase {
     @Override
     public List<PriceTick> ticks(SkuId skuId, Instant from, Instant to, int limit) {
         return ticks.findBySkuInRange(skuId, from, to, limit);
+    }
+
+    @Override
+    public List<OhlcCandle> ohlc(SkuId skuId, OhlcPeriod period, Instant from, Instant to, int limit) {
+        return candles.findBySkuInRange(skuId, period, from, to, limit);
     }
 }

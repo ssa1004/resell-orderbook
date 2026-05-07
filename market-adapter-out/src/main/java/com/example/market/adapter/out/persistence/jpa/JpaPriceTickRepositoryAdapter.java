@@ -73,4 +73,11 @@ public class JpaPriceTickRepositoryAdapter implements PriceTickRepository {
                 Money.of(raw.max(), currency)
         );
     }
+
+    @Override
+    public List<SkuId> findDistinctSkuIdsInRange(Instant from, Instant to) {
+        return jpa.findDistinctSkuIdsInRange(from, to).stream()
+                .map(uuid -> SkuId.of(uuid.toString()))
+                .toList();
+    }
 }

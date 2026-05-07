@@ -28,5 +28,11 @@ public interface PriceTickRepository {
      */
     PriceAggregation aggregate(SkuId skuId, Instant from, Instant to);
 
+    /**
+     * {@code [from, to)} 안에 1개 이상 tick 이 있는 SKU 목록 — OHLC aggregation batch 가
+     * "어떤 SKU 의 candle 을 새로 만들어야 하나" 결정하는 데 사용. 거래 없던 SKU 는 candle 없음.
+     */
+    List<SkuId> findDistinctSkuIdsInRange(Instant from, Instant to);
+
     record PriceAggregation(long count, Money min, Money avg, Money max) {}
 }

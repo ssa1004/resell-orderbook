@@ -36,3 +36,26 @@ data class PriceTicksResponse(
     val to: String,
     val ticks: List<PriceTickView>,
 )
+
+/**
+ * 캔들스틱 차트 1개 막대 — 주식 차트의 표준 형태.
+ * Frontend 차트 라이브러리 (TradingView / Highcharts) 가 그대로 받아 그릴 수 있다.
+ */
+data class OhlcCandleView(
+    val bucketStart: String,
+    val open: BigDecimal,
+    val high: BigDecimal,
+    val low: BigDecimal,
+    val close: BigDecimal,
+    val volume: Long,
+    val tradeCount: Long,
+)
+
+data class OhlcCandlesResponse(
+    val skuId: String,
+    val period: String,           // ONE_MIN / FIVE_MIN / ONE_HOUR / ONE_DAY
+    val from: String,
+    val to: String,
+    val currency: String,
+    val candles: List<OhlcCandleView>,
+)

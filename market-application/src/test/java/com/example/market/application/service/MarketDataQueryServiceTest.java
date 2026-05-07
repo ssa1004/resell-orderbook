@@ -39,13 +39,14 @@ class MarketDataQueryServiceTest {
     private static final SkuId SKU = SkuId.of(UUID.randomUUID().toString());
 
     @Mock PriceTickRepository ticks;
+    @Mock com.example.market.application.port.out.OhlcCandleRepository candles;
     @Mock OrderBookQueryUseCase orderBookQuery;
 
     MarketDataQueryService service;
 
     @BeforeEach
     void setUp() {
-        service = new MarketDataQueryService(ticks, orderBookQuery, CLOCK);
+        service = new MarketDataQueryService(ticks, candles, orderBookQuery, CLOCK);
     }
 
     private static Money won(long n) {

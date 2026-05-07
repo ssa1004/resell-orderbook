@@ -43,4 +43,13 @@ public interface SpringDataPriceTickRepository extends JpaRepository<PriceTickJp
 
     /** {@link #aggregate} 의 응답 DTO. count=0 이면 다른 필드는 null. */
     record SkuPriceAggregation(long count, BigDecimal min, Double avg, BigDecimal max) {}
+
+    /** OHLC aggregation 배치 — 이 시간 구간에 1건이라도 거래가 있던 SKU 만. */
+    @Query("""
+            SELECT DISTINCT p.skuId FROM PriceTickJpaEntity p
+             WHERE p.occurredAt >= :from
+               AND p.occurredAt <  :to
+            """)
+    List<UUID> findDistinctSkuIdsInRange(@Param("from") Instant from,
+                                         @Param("to") Instant to);
 }

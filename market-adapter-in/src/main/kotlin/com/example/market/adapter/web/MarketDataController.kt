@@ -1,10 +1,13 @@
 package com.example.market.adapter.web
 
 import com.example.market.adapter.web.dto.MarketStatsResponse
+import com.example.market.adapter.web.dto.OhlcCandleView
+import com.example.market.adapter.web.dto.OhlcCandlesResponse
 import com.example.market.adapter.web.dto.PriceTickView
 import com.example.market.adapter.web.dto.PriceTicksResponse
 import com.example.market.application.port.`in`.MarketDataQueryUseCase
 import com.example.market.domain.catalog.SkuId
+import com.example.market.domain.marketdata.OhlcPeriod
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.ResponseEntity
@@ -73,6 +76,38 @@ class MarketDataController(
             from = from,
             to = to,
             ticks = ticks,
+        ))
+    }
+
+    @GetMapping("/ohlc/{skuId}")
+    @Operation(summary = "OHLC 캔들스틱 — TradingView/Highcharts 표준 형태")
+    fun ohlc(
+        @PathVariable skuId: String,
+        @RequestParam period: String,       // ONE_MIN / FIVE_MIN / ONE_HOUR / ONE_DAY
+        @RequestParam from: String,
+        @RequestParam to: String,
+        @RequestParam(defaultValue = "1000") limit: Int,
+    ): ResponseEntity<OhlcCandlesResponse> {
+        val periodEnum = OhlcPeriod.valueOf(period)
+        val fromInstant = Instant.parse(from)
+        val toInstant = Instant.parse(to)
+        val candles = marketData.ohlc(SkuId.of(skuId), periodEnum, fromInstant, toInstant, limit)
+        val currency = candles.firstOrNull()?.open()?.currency()?.currencyCode ?: "KRW"
+        return ResponseEntity.ok(OhlcCandlesResponse(
+            skuId = skuId,
+            period = periodEnum.name,
+            from = from,
+            to = to,
+            currency = currency,
+            candles = candles.map { c -> OhlcCandleView(
+                bucketStart = c.bucketStart().toString(),
+                open = c.open().amount(),
+                high = c.high().amount(),
+                low = c.low().amount(),
+                close = c.close().amount(),
+                volume = c.volume(),
+                tradeCount = c.tradeCount(),
+            ) },
         ))
     }
 }
