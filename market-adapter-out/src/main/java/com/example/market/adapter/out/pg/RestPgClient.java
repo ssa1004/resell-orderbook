@@ -10,13 +10,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * 운영용 PG client. {@code market.pg.enabled=true} 일 때 활성.
+ * 운영용 PG (결제 게이트웨이) 클라이언트. {@code market.pg.enabled=true} 일 때 활성.
  *
- * <p>Resilience4j {@code @CircuitBreaker} + {@code @Retry} (instance=pg).
- * CB OPEN 시 fallback 으로 즉시 reject — application 의 AuthorizePaymentService 가
- * Trade.cancelOnPaymentFailure 호출.</p>
+ * <p>Resilience4j 의 {@code @CircuitBreaker} (외부 호출 실패율이 임계치를 넘으면 호출 자체를
+ * 차단해 자기 시스템을 보호하는 회로 차단기) + {@code @Retry} 적용 (인스턴스 이름 = "pg").
+ * 차단 (OPEN) 상태에서는 fallback 메서드로 즉시 거절을 반환하고, 이를 받은 AuthorizePaymentService
+ * 가 Trade.cancelOnPaymentFailure 를 호출한다.</p>
  *
- * <p>RestClient (Spring 6.1+) 사용 — 가상스레드 친화적, OpenFeign 보다 모던.</p>
+ * <p>HTTP 호출은 Spring 6.1 이상의 RestClient 를 사용한다 (가상 스레드와 잘 맞고, OpenFeign
+ * 보다 최신).</p>
  */
 @Component
 @ConditionalOnProperty(name = "market.pg.enabled", havingValue = "true")

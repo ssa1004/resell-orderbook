@@ -17,10 +17,13 @@ import java.time.Clock;
 import java.time.Instant;
 
 /**
- * TradeMatched 이벤트 컨슈머 → PG.authorize() → Trade.authorizePayment / cancelOnPaymentFailure.
+ * TradeMatched 이벤트 컨슈머 → PG (결제 게이트웨이) authorize 호출 → 결과에 따라
+ * Trade.authorizePayment 또는 cancelOnPaymentFailure 호출.
  *
- * <p>Idempotency: 컨슈머 at-least-once 보장으로 중복 호출 가능 → Trade 상태 체크 (CREATED 만 진행).
- * PG 자체 idempotency-key 는 TradeId 사용 — 같은 거래에 PG 결제는 한 번만.</p>
+ * <p>멱등 처리: Kafka 가 메시지를 최소 한 번 이상 전달 (at-least-once) 하므로 중복 호출이
+ * 가능하다 → Trade 의 현재 상태가 CREATED 인 경우에만 진행하고 나머지는 그냥 건너뛴다.
+ * PG 측 idempotency-key (PG 가 같은 결제 요청을 두 번 받아도 한 번만 결제하도록 식별하는
+ * 키) 로는 TradeId 를 그대로 사용 — 같은 거래에 결제는 한 번만 발생.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -45,7 +48,7 @@ public class AuthorizePaymentService implements AuthorizePaymentUseCase {
 
         Instant now = clock.instant();
         var req = new PgClient.AuthorizeRequest(
-                trade.id().toString(),                 // idempotency-key = tradeId
+                trade.id().toString(),                 // PG 측 멱등성 키 = tradeId (같은 거래에 결제는 한 번만)
                 trade.feeSnapshot().buyerCharge(),
                 trade.id().toString(),
                 trade.buyerId().value());

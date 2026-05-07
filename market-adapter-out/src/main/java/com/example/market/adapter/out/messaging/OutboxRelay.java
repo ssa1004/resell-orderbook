@@ -21,14 +21,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Outbox 테이블의 unpublished row 를 polling 해서 Kafka 로 발행하고 markPublished 한다.
+ * Outbox 패턴의 발행 측 — Outbox 테이블에 쌓인 미발행 행을 주기적으로 읽어 Kafka 로 보내고
+ * 발행 완료(markPublished) 표시한다.
  *
  * <p>설계 메모:</p>
  * <ul>
- *   <li>Kafka send 는 동기 (Future.get(timeout)). 응답이 와야 markPublished — fire-and-forget 안 함.</li>
- *   <li>markPublished 는 별도 트랜잭션에서. Kafka 가 성공한 row 만 commit 되고, 실패 row 는
- *       그대로 unpublished 로 남아 다음 polling 에서 자동 재시도.</li>
- *   <li>topic 이름은 {@code "market." + eventType.toLowerCase()}.</li>
+ *   <li>Kafka send 는 동기 (Future.get(timeout)) — 브로커 응답이 와야 발행 완료 처리한다.
+ *       응답을 안 기다리는 fire-and-forget (보내고 잊기) 방식은 안 쓴다.</li>
+ *   <li>발행 완료 표시는 별도 트랜잭션 (REQUIRES_NEW) 에서. Kafka 가 성공한 행만 commit 되고,
+ *       실패한 행은 그대로 미발행 상태로 남아 다음 폴링에서 자동 재시도된다.</li>
+ *   <li>topic 이름 규칙: {@code "market." + eventType.toLowerCase()}.</li>
  * </ul>
  */
 @Component
@@ -72,7 +74,7 @@ public class OutboxRelay {
             } catch (ExecutionException | TimeoutException e) {
                 failure++;
                 log.warn("outbox relay send failed for {}: {}", row.getId(), e.getMessage());
-                // 다음 polling 에서 재시도
+                // 발행 완료 표시를 안 하므로 다음 폴링에서 자동으로 다시 시도된다
             }
         }
         if (success + failure > 0) {

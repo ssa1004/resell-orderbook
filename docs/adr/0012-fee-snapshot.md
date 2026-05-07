@@ -14,7 +14,8 @@ KREAM 같은 마켓의 수수료는 다음과 같이 구성된다.
 문제: 어제 매칭된 거래가 오늘 정산되는데, 어제 정책으로 계산해야 일관성이 맞다.
 
 ## 결정
-**`Trade.match()` 시점에 `FeePolicy.snapshotFor(price)` 가 만든 `FeeSnapshot` 을 Trade 애그리거트가 보유한다.**
+**`Trade.match()` 시점에 `FeePolicy.snapshotFor(price)` 가 그 순간의 수수료 계산서를 박제한
+`FeeSnapshot` 객체를 만들고, Trade 애그리거트가 그것을 같이 들고 다닌다.**
 
 ```java
 public record FeeSnapshot(

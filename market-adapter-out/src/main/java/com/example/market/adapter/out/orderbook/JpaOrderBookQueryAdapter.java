@@ -22,14 +22,16 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * JPA 기반 OrderBook 조회 어댑터.
+ * JPA 기반 호가창(OrderBook) 조회 어댑터.
  *
- * <p>{@link #acquireSkuLock} 는 PostgreSQL {@code pg_advisory_xact_lock} 으로 같은 SKU 의 매칭을
- * 트랜잭션 단위로 직렬화한다. 같은 SKU 동시 매칭에 의한 데드락 가능성을 코드 레벨이 아닌
- * DB 락으로 차단.</p>
+ * <p>{@link #acquireSkuLock} 는 PostgreSQL 의 {@code pg_advisory_xact_lock} (트랜잭션 단위로
+ * 임의의 정수 키에 거는 응용 락) 으로 같은 SKU 의 매칭을 한 줄로 줄세운다. 같은 SKU 가 동시
+ * 매칭될 때 발생할 수 있는 데드락을, 잠금 순서를 코드로 관리하지 않고 DB 락의 키로 통일해서
+ * 구조적으로 차단한다.</p>
  *
- * <p>H2 (dev) 는 advisory lock 미지원이라 {@code market.advisory-lock.enabled=false} 로 두고,
- * 락 없는 단순 조회로 동작한다 (단일 인스턴스라 race 없음). prod 는 true.</p>
+ * <p>H2 (dev) 는 advisory lock 을 지원하지 않으므로 {@code market.advisory-lock.enabled=false}
+ * 로 끄고, 락 없는 단순 조회로 동작한다 (개발 환경은 인스턴스 한 대라 동시 매칭 경쟁이 사실상
+ * 없음). 운영(prod)은 true.</p>
  */
 @Component
 @Slf4j
@@ -58,7 +60,8 @@ public class JpaOrderBookQueryAdapter implements OrderBookQueryPort {
             log.trace("advisory lock disabled — skip for sku {}", skuId);
             return;
         }
-        // PostgreSQL native — UUID 의 64-bit hash 로 lock key 생성
+        // PostgreSQL 의 native 함수 호출 — SKU UUID 를 64bit 정수로 압축 (XOR) 해서 lock key 로 사용.
+        // 같은 SKU 면 항상 같은 키 → 동일 키 잠금만 발생해서 데드락이 구조적으로 불가능.
         long lockKey = skuId.value().getMostSignificantBits() ^ skuId.value().getLeastSignificantBits();
         em.createNativeQuery("SELECT pg_advisory_xact_lock(:k)")
                 .setParameter("k", lockKey)
@@ -69,8 +72,9 @@ public class JpaOrderBookQueryAdapter implements OrderBookQueryPort {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public Optional<Bid> findHighestBidForUpdate(SkuId skuId, Instant now) {
-        // dev (H2, advisory-lock=false) 에서는 단일 인스턴스라 락 불필요 + H2 가 FOR UPDATE 와
-        // 다른 트랜잭션의 commit 된 행을 다르게 처리해 매칭이 깨질 수 있음 → 단순 read 사용
+        // dev (H2, advisory-lock=false) 환경은 인스턴스가 한 대라 잠금이 굳이 필요 없다. 게다가
+        // H2 는 PostgreSQL 의 FOR UPDATE 와 미세하게 다르게 동작해서 (다른 트랜잭션이 커밋한 행을
+        // 처리하는 방식이 달라) 매칭이 어긋나는 사례가 있어서, dev 에서는 잠금 없는 단순 조회를 쓴다.
         if (!advisoryLockEnabled) {
             return bids.topNActive(skuId.value(), now, PageRequest.of(0, 1))
                     .stream().findFirst().map(BidJpaMapper::toDomain);

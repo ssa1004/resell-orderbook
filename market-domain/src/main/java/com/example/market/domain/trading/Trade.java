@@ -11,13 +11,16 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Trade — 매칭된 거래. Listing(ASK) + Bid 가 만나서 생성됨.
+ * Trade — 매칭된 거래. Listing(ASK = 판매 호가) 과 Bid (구매 호가) 가 만나면 생성된다.
  *
- * <p>가격 결정: <strong>먼저 등록된 호가의 가격</strong> (taker/maker 모델). 호출자가 결정해서 넘김.</p>
+ * <p>체결가 결정: <strong>먼저 등록되어 호가창에 있던 호가의 가격</strong> (taker/maker 모델 —
+ * 나중에 들어온 호가 = taker 가, 미리 들어와 있던 호가 = maker 의 가격을 받아간다). 호출자가
+ * 결정해서 넘긴다.</p>
  *
- * <p>매칭 시점에 {@link FeeSnapshot} 을 freeze — 정책이 나중에 바뀌어도 이 거래의 수수료는 불변.</p>
+ * <p>매칭 시점에 {@link FeeSnapshot} 을 박제(freeze) 한다 — 정책이 나중에 바뀌어도 이 거래의
+ * 수수료 명세는 변하지 않는다.</p>
  *
- * <p>상태머신 ({@link TradeStatus}):</p>
+ * <p>상태 머신 ({@link TradeStatus} 가 단계별로 정의된 상태 흐름):</p>
  * <pre>
  *  CREATED ──cancelOnPaymentFailure──▶ FAILED
  *     │
@@ -37,7 +40,7 @@ public class Trade {
     private final UserId sellerId;
     private final UserId buyerId;
     private final Money price;            // 체결가
-    private final FeeSnapshot feeSnapshot; // 수수료 freeze
+    private final FeeSnapshot feeSnapshot; // 매칭 순간의 수수료 명세를 그대로 박제 (이후 정책이 바뀌어도 불변)
     private TradeStatus status;
     private String pgPaymentId;
     private String inspectionFailReason;
@@ -65,7 +68,7 @@ public class Trade {
         this.version = version;
     }
 
-    /** 매칭 시 Listing + Bid + 정책 → Trade 생성. 정책은 즉시 snapshot. */
+    /** 매칭 시 Listing + Bid + 정책으로 Trade 를 생성. 정책은 이 순간 snapshot 으로 박제된다. */
     public static Trade match(Listing listing, Bid bid, Money executionPrice,
                               FeePolicy feePolicy, Instant now) {
         Objects.requireNonNull(listing); Objects.requireNonNull(bid);
@@ -107,7 +110,8 @@ public class Trade {
         return new PaymentAuthorized(id, pgPaymentId, feeSnapshot.buyerCharge(), now);
     }
 
-    /** PG authorize 실패 시 호출 — CREATED 상태에서 바로 FAILED 로 종착. */
+    /** 결제 게이트웨이(PG) 의 결제 승인이 실패했을 때 호출 — CREATED 상태에서 바로 FAILED 로
+     * 종착. */
     public PaymentRejected cancelOnPaymentFailure(String reason, Instant now) {
         require(TradeStatus.CREATED, "cancelOnPaymentFailure");
         this.status = TradeStatus.FAILED;
@@ -169,7 +173,8 @@ public class Trade {
      * 환불 처리가 모두 완료된 후 거래를 종착(FAILED) 상태로 마감.
      *
      * <p>의미: REFUNDING 단계에서 PG 환불이 성공해 더 이상 진행할 작업이 없을 때 호출.
-     * "거래 자체가 실패로 끝났다" 를 기록 — terminal 상태 진입.</p>
+     * "거래 자체가 실패로 끝났다" 를 기록 — 더 이상 다른 상태로 못 가는 종착(terminal)
+     * 상태로 진입.</p>
      */
     public TradeFailed closeAsFailedAfterRefund(Instant now) {
         if (status != TradeStatus.REFUNDING) {

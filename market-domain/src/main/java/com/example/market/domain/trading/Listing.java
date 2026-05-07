@@ -9,10 +9,11 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Listing(ASK) — 판매자가 등록한 *판매 호가*. "이 가격에 팔겠다".
+ * Listing(ASK) — 판매자가 등록한 <em>판매 호가</em>. "이 가격에 팔겠다".
  *
  * <p>상태: ACTIVE → MATCHED (체결) / CANCELLED / EXPIRED.<br>
- * 매칭 우선순위: 가격 낮은 순 → 시간 오래된 순.</p>
+ * 매칭 우선순위 (price-time priority — 거래소 표준): 가격 낮은 순 → 같은 가격이면 먼저
+ * 등록된 순.</p>
  */
 public class Listing {
 
@@ -84,7 +85,7 @@ public class Listing {
     }
 
     public void expire(Instant now) {
-        if (status != ListingStatus.ACTIVE) return;  // idempotent
+        if (status != ListingStatus.ACTIVE) return;  // 같은 호가에 두 번 호출되어도 안전 (멱등)
         if (now.isBefore(expiresAt)) {
             throw new IllegalStateException("not yet expired: " + expiresAt);
         }
@@ -93,7 +94,8 @@ public class Listing {
 
     public boolean isActive() { return status == ListingStatus.ACTIVE; }
 
-    /** 매칭 가능 여부 — ACTIVE 이고 아직 만료되지 않음. MatchEngine 이 사용. */
+    /** 매칭 가능 여부 — ACTIVE 이고 아직 만료되지 않음. MatchEngine 이 호출해서 사용.
+     * status 컬럼이 ACTIVE 인 채로 만료 시각을 넘긴 호가가 잘못 체결되는 것을 막아준다. */
     public boolean isMatchableAt(Instant now) {
         return isActive() && now.isBefore(expiresAt);
     }
@@ -108,12 +110,12 @@ public class Listing {
     public TradeId matchedTradeId() { return matchedTradeId; }
     public long version() { return version; }
 
-    /** 호가창 broadcast 용 (매칭 X 일 때 발행). */
+    /** 호가창 실시간 push 용 — 매칭이 안 된 채 신규 호가만 등록된 경우에 발행. */
     public ListingPlaced placed(Instant now) {
         return new ListingPlaced(id, skuId, sellerId, askPrice, now);
     }
 
-    /** 취소 broadcast 용. */
+    /** 호가창 실시간 push 용 — 호가가 취소되었을 때 발행. */
     public ListingCancelled cancelled(Instant now) {
         return new ListingCancelled(id, skuId, now);
     }

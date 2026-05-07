@@ -4,32 +4,39 @@
 적용
 
 ## 배경
-도메인 코드가 인프라(JPA, Kafka, Redis, S3, OAuth2) 에 직접 의존하면 몇 가지 문제가 생긴다.
+도메인 코드가 인프라 (JPA, Kafka, Redis, S3, OAuth2) 에 직접 의존하면 몇 가지 문제가 생긴다.
 
-- 도메인 단위 테스트가 무거워진다 (Spring 컨텍스트 필요).
+- 도메인 단위 테스트가 무거워진다 (Spring 컨텍스트가 떠야 동작).
 - 인프라 교체 비용이 커진다.
-- 도메인 모델이 ORM 어노테이션이나 직렬화 규칙에 침해된다.
+- 도메인 모델이 ORM 어노테이션 (`@Entity` 등) 이나 직렬화 규칙에 의해 형태가 변형된다.
 
 ## 결정
-**Port–Adapter 로 분리한다.**
+**헥사고날 아키텍처 (도메인을 가운데에 두고, 외부 입력/출력을 인터페이스 = port 로 두고
+실제 구현 = adapter 를 바깥쪽에 둬서, 도메인이 인프라에 의존하지 않게 만드는 구조) 로
+분리한다.**
 
 ```
-adapter-in  ─→ application (port.in 호출)
+adapter-in  ─→ application (port.in: 들어오는 요청 인터페이스 호출)
                   ↓
-              domain (순수)
+              domain (순수 — 외부 라이브러리 의존 없음)
                   ↑
-adapter-out ─→ application (port.out 구현)
+adapter-out ─→ application (port.out: 외부 시스템 호출 인터페이스 구현)
 ```
 
 - `domain` — 도메인 로직은 Spring/JPA/Kafka API 를 사용하지 않는다.
-- `application` — Spring `@Service`/`@Transactional` 만 사용하고, 외부는 `port.out` 인터페이스로 추상화.
-- `adapter-out` — JPA 엔티티, 매퍼, 어댑터가 도메인을 엔티티로 변환하고 다시 복원한다.
+- `application` — Spring `@Service`/`@Transactional` 만 사용하고, 외부 시스템은 `port.out`
+  인터페이스로 추상화.
+- `adapter-out` — JPA 엔티티, 매퍼 (도메인 객체와 DB 엔티티 사이를 변환하는 코드), 어댑터가
+  도메인을 엔티티로 변환하고 다시 복원한다.
 
 ## 장단점
-- 도메인 단위 테스트가 `Money`, `Listing`, `Trade` 만으로 가능 — Spring 컨텍스트가 필요 없어 millisecond 단위로 끝난다.
-- JPA 를 JOOQ 또는 R2DBC 로 바꿀 때 도메인 코드는 변경하지 않아도 된다.
+- 도메인 단위 테스트가 `Money`, `Listing`, `Trade` 만으로 가능 — Spring 컨텍스트가 필요
+  없어 밀리초 단위로 끝난다.
+- JPA 를 JOOQ 또는 R2DBC 같은 다른 데이터 접근 라이브러리로 바꿔도 도메인 코드는 변경하지
+  않아도 된다.
 - 매퍼 반복 코드가 늘어난다.
 - 신규 인원이 "엔티티와 도메인이 왜 따로 있는지" 학습 비용이 있다.
 
 ## 다시 검토할 시점
-도메인이 거의 CRUD 만 하는 단순 모듈이라면 구조가 과할 수 있다. 그런 모듈만 단순 계층형 구조로 갈 수도 있다.
+도메인이 거의 CRUD (Create/Read/Update/Delete 만 하는 단순 데이터 처리) 만 하는 단순
+모듈이라면 구조가 과할 수 있다. 그런 모듈만 단순 계층형 구조로 갈 수도 있다.

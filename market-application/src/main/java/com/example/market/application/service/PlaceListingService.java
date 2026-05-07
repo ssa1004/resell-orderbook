@@ -28,17 +28,21 @@ import java.util.Optional;
 /**
  * 판매 호가(ASK) 등록 + 즉시 매칭 시도.
  *
- * <p>흐름 (single transaction):</p>
+ * <p>흐름 (모두 한 트랜잭션 안에서 처리):</p>
  * <ol>
- *   <li>Idempotency-Key 점유 (Redis NX) — 중복 요청 차단</li>
+ *   <li>Idempotency-Key (같은 요청이 두 번 와도 한 번만 처리되게 막는 클라이언트 발급 키)
+ *       점유 — Redis NX (이미 키가 있으면 거부) 로 중복 요청 차단</li>
  *   <li>{@code @Transactional} 시작</li>
- *   <li>{@link OrderBookQueryPort#acquireSkuLock} — SKU advisory lock (deadlock 결정적 회피)</li>
+ *   <li>{@link OrderBookQueryPort#acquireSkuLock} — SKU 단위 advisory lock (PG 의 응용 락).
+ *       항상 같은 키로만 잠그므로 데드락이 구조적으로 발생할 수 없음</li>
  *   <li>도메인 Listing 생성 + INSERT</li>
- *   <li>같은 SKU 의 Highest BID 를 FOR UPDATE SKIP LOCKED 로 조회</li>
- *   <li>{@link MatchEngine#matchNewAsk} — 매칭 검사 (만료/self-trade/가격 모두 거름)</li>
- *   <li>매칭 시: Listing/Bid markMatched + Trade INSERT + TradeMatched 이벤트
- *       <br>실패 시: ListingPlaced 이벤트 (호가창 갱신용)</li>
- *   <li>tx commit (Outbox INSERT 도 같은 tx — atomic)</li>
+ *   <li>같은 SKU 의 가장 높은 BID 를 FOR UPDATE SKIP LOCKED (다른 트랜잭션이 잠근 행은
+ *       건너뛰고, 잠그지 않은 best 행만 잠근다) 로 조회</li>
+ *   <li>{@link MatchEngine#matchNewAsk} — 매칭 검사 (만료/자기 거래/가격 조건을 모두 통과해야 함)</li>
+ *   <li>매칭 성공 시: Listing/Bid 를 MATCHED 로 마킹 + Trade INSERT + TradeMatched 이벤트
+ *       <br>실패 시: ListingPlaced 이벤트 (실시간 호가창 push 용)</li>
+ *   <li>트랜잭션 커밋 (Outbox 테이블 INSERT 도 같은 트랜잭션 — DB 변경과 이벤트 발행이 함께
+ *       성공하거나 함께 실패)</li>
  * </ol>
  */
 @Service
@@ -62,7 +66,8 @@ public class PlaceListingService implements PlaceListingUseCase {
         idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
         Instant now = clock.instant();
 
-        // SKU 단위 직렬화 — pg_advisory_xact_lock(hash(sku_id))
+        // SKU 단위로 매칭을 한 줄로 줄세움 — pg_advisory_xact_lock(hash(sku_id))
+        // (PostgreSQL 의 트랜잭션 단위 응용 락. 같은 키로만 잠가서 데드락 위험 없음)
         orderBook.acquireSkuLock(cmd.skuId());
 
         Listing listing = Listing.place(cmd.skuId(), cmd.sellerId(), cmd.askPrice(), now);
@@ -81,7 +86,8 @@ public class PlaceListingService implements PlaceListingUseCase {
             bids.save(bid);
             trades.save(t);
             events.publish(t.matched(now));
-            // 시세 틱 — 같은 트랜잭션. 이중 저장은 unique(trade_id) 가 막음.
+            // 시세 틱 (체결 단건 시세 데이터) 저장 — 거래와 같은 트랜잭션. 같은 거래가
+            // 두 번 기록되는 경우는 DB 의 UNIQUE(trade_id) 제약이 차단한다.
             priceTicks.save(PriceTick.from(t.id(), t.skuId(), t.price(), now));
             log.info("listing matched id={} trade={} price={} sku={}",
                     listing.id(), t.id(), t.price(), cmd.skuId());

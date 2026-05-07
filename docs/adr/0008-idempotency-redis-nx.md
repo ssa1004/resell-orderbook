@@ -4,19 +4,29 @@
 적용
 
 ## 배경
-중복 요청은 두 가지 경로로 들어온다.
+멱등성 (같은 요청을 여러 번 받아도 한 번만 처리된 것 같은 결과를 보장하는 성질) 을 보장
+해야 하는 중복 요청은 두 가지 경로로 들어온다.
 
-1. **사용자 요청** — 같은 ASK 두 번 등록, 같은 BuyNow 두 번. 거래가 중복으로 만들어질 수 있다.
-2. **시스템 (이벤트 컨슈머) 트리거** — Kafka at-least-once 라 같은 PaymentAuthorize 가 두 번 호출될 수 있다.
+1. **사용자 요청** — 같은 ASK 두 번 등록, 같은 BuyNow (호가 등록 없이 즉시 구매) 두 번.
+   거래가 중복으로 만들어질 수 있다.
+2. **시스템 (이벤트 컨슈머) 트리거** — Kafka 가 메시지를 최소 한 번 이상 전달하는 (at-least-once)
+   특성 때문에 같은 PaymentAuthorize 가 두 번 호출될 수 있다.
 
 ## 결정
 두 경로를 다르게 처리한다.
 
-- **사용자 요청**: `Idempotency-Key` 헤더 필수. `IdempotencyKeyStore.acquireOrThrow(key)` 가 Redis NX (dev 는 in-memory) 로 점유한다. 같은 키로 다시 들어오면 `DuplicateRequestException` → HTTP 409.
-- **시스템 트리거**: 컨슈머가 *현재 애그리거트 상태* 를 체크해서 자연스럽게 멱등하게 만든다. 예: `AuthorizePaymentService` 가 Trade 상태가 이미 PAYMENT_AUTHORIZED 이면 PG 호출을 건너뛴다.
+- **사용자 요청**: `Idempotency-Key` 헤더 (클라이언트가 같은 요청임을 식별하기 위해 매기는
+  고유 키) 를 필수로 받는다. `IdempotencyKeyStore.acquireOrThrow(key)` 가 Redis NX (이미
+  키가 있으면 거부하는 SETNX 명령. dev 환경은 인메모리 맵) 로 키를 선점한다. 같은 키로 다시
+  들어오면 `DuplicateRequestException` → HTTP 409.
+- **시스템 트리거**: 컨슈머가 *현재 애그리거트 상태* 를 체크해서 자연스럽게 멱등하게 만든다.
+  예: `AuthorizePaymentService` 가 Trade 상태가 이미 PAYMENT_AUTHORIZED 면 결제사 호출을
+  건너뛴다.
 
 ## 장단점
-- 사용자가 retry 해도 안전하다 — 같은 키로 다시 보내도 거래는 한 번만 발생.
-- 시스템 멱등성은 별도 store 없이 도메인 상태가 진실이라 단순하다.
-- 응답 캐시(같은 키 재요청 시 *기존 응답* 반환) 는 미구현이다 — 단순화를 위해 뺐다. 클라이언트는 409 받으면 별도 GET 으로 결과 확인하는 패턴.
-- Redis 가 다운되면 사용자 멱등성 보장이 약해진다. DB unique constraint 같은 2차 방어선을 추가하면 더 안전하다.
+- 사용자가 재시도해도 안전하다 — 같은 키로 다시 보내도 거래는 한 번만 발생.
+- 시스템 측 멱등성은 별도 저장소 없이 도메인 상태 자체가 기준이라 단순하다.
+- 응답 캐시 (같은 키 재요청 시 *기존 응답* 그대로 반환) 는 미구현이다 — 단순화를 위해 뺐다.
+  클라이언트는 409 받으면 별도 GET 으로 결과를 확인하는 패턴.
+- Redis 가 다운되면 사용자 멱등성 보장이 약해진다. DB unique constraint (DB 자체가 같은
+  값을 두 번 넣지 못하게 막는 제약) 같은 2차 방어선을 추가하면 더 안전하다.

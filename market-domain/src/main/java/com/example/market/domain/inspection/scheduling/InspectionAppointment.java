@@ -7,20 +7,21 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * 검수 예약 — 한 Trade × 한 InspectionCenter × 한 시간 슬롯.
+ * 검수 예약 — 한 거래(Trade) × 한 검수센터(InspectionCenter) × 한 시간 슬롯의 묶음.
  *
- * <p>한 Trade 당 동시에 1개 RESERVED/ARRIVED appointment 만 — DB unique constraint 가
- * (trade_id, status) 조합으로 보장 (active 만). 사용자가 reschedule 하려면 기존 appointment
- * 를 CANCEL 한 후 새로 BOOK.</p>
+ * <p>한 거래당 동시에 활성 (RESERVED 또는 ARRIVED) 인 예약은 1개만 — DB UNIQUE 제약
+ * (DB 자체가 같은 키 중복을 거절하는 규칙) 이 (trade_id, status) 조합 (활성 상태일 때만)
+ * 으로 보장한다. 사용자가 시간을 바꾸려면 (reschedule) 기존 예약을 취소한 뒤 새로 예약.</p>
  *
- * <p>상태 전이는 도메인 메서드로만 — setter 없음.</p>
+ * <p>상태 변경은 도메인 메서드를 통해서만 가능하다 — setter 없음.</p>
  */
 public final class InspectionAppointment {
 
     private final AppointmentId id;
     private final TradeId tradeId;
     private final InspectionCenterId centerId;
-    /** 예약된 슬롯 시작 시각. centerId × slotStart 가 *암묵적 slot* 의 키. */
+    /** 예약된 슬롯 시작 시각. 슬롯 row 를 미리 만들지 않고 (centerId, slotStart) 튜플 자체를
+     * 슬롯의 식별자로 사용한다 — 암묵적 슬롯. */
     private final Instant slotStart;
     private final Instant slotEnd;
     private AppointmentStatus status;
@@ -87,7 +88,7 @@ public final class InspectionAppointment {
         this.completedAt = clock.instant();
     }
 
-    /** 검수 거부 — 가품 / 손상 등. Trade 환불 흐름. */
+    /** 검수 거부 — 가품 또는 손상 등. 이후 Trade 는 환불 흐름으로 진행. */
     public void markRejected(Clock clock) {
         if (status != AppointmentStatus.ARRIVED) {
             throw new IllegalStateException("only ARRIVED can be marked REJECTED: " + status);
@@ -105,7 +106,8 @@ public final class InspectionAppointment {
         this.completedAt = clock.instant();
     }
 
-    /** 약속 시간 + grace 지나도 안 옴 — batch 가 처리. 슬롯 회수. */
+    /** 약속 시간 + 유예 시간(grace period)이 지나도 셀러가 안 오는 경우 — 배치가 처리해
+     * 슬롯 자리를 다른 사람이 쓸 수 있도록 회수한다. */
     public void markNoShow(Clock clock) {
         if (status != AppointmentStatus.RESERVED) {
             throw new IllegalStateException("only RESERVED can be marked NO_SHOW: " + status);

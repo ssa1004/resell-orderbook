@@ -1,5 +1,14 @@
--- Resell Market Platform — V1 init schema
--- PostgreSQL + H2 (PostgreSQL mode) 호환
+-- Resell Market Platform — V1 초기 스키마
+-- PostgreSQL 운영 + H2 (PostgreSQL 호환 모드 — H2 가 PG 문법 흉내) 양쪽에서 동작
+--
+-- 주요 테이블 묶음:
+--  products / skus           : 상품과 SKU (Stock Keeping Unit, 사이즈/색상까지 구분된 재고 단위)
+--  listings (ASK)            : 판매 호가
+--  bids (BID)                : 구매 호가
+--  trades                    : 매칭된 거래. fee_* 컬럼은 거래 시점의 수수료 명세를 박제 (FeeSnapshot)
+--  inspection_requests       : 검수 작업 자체
+--  payouts / refunds         : 정산 / 환불
+--  outbox                    : 보낼 이벤트를 잠시 모아두는 테이블 (Outbox 패턴 — DB 커밋과 메시지 발행을 같이 묶기 위함)
 
 CREATE TABLE products (
     id              UUID PRIMARY KEY,
