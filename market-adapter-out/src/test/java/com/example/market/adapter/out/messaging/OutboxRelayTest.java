@@ -18,6 +18,7 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -112,6 +113,57 @@ class OutboxRelayTest {
         // 행마다 별도 트랜잭션
         verify(tm, times(2)).getTransaction(any());
         verify(tm, times(2)).commit(any(TransactionStatus.class));
+    }
+
+    @Test
+    void pipelinesSendsBeforeAwaiting() {
+        // 파이프라인 검증 — 모든 row 의 send() 가 첫 await 전에 호출되어야 한다. 직렬 send →
+        // await → send → await 패턴이면 throughput 이 brokers RTT 의 N배가 된다.
+        List<OutboxJpaEntity> rows = List.of(
+                newRow("E1", "agg-1"), newRow("E2", "agg-2"),
+                newRow("E3", "agg-3"), newRow("E4", "agg-4"));
+        when(outbox.findUnpublished(any(Pageable.class))).thenReturn(rows);
+
+        List<String> sendOrder = new ArrayList<>();
+        List<CompletableFuture<SendResult<String, String>>> futures = new ArrayList<>();
+        when(kafka.send(any(String.class), any(String.class), any(String.class)))
+                .thenAnswer(inv -> {
+                    String key = (String) inv.getArguments()[1];
+                    sendOrder.add("send:" + key);
+                    var f = new CompletableFuture<SendResult<String, String>>();
+                    futures.add(f);
+                    return f;
+                });
+
+        // relay 를 별도 스레드에서 실행하고, 모든 send 가 발생한 시점에 future 를 완료시킨다.
+        Thread t = new Thread(() -> relay.relay());
+        t.start();
+
+        // 모든 send 가 호출될 때까지 대기 (busy-wait, 짧음)
+        long deadline = System.currentTimeMillis() + 2_000;
+        while (sendOrder.size() < rows.size() && System.currentTimeMillis() < deadline) {
+            Thread.yield();
+        }
+        assertThat(sendOrder).hasSize(rows.size());
+
+        // 이 시점에 kafka.send 는 모두 호출되었지만, future 는 아직 미완료 상태라 await 가
+        // 시작되지 않았다. 이제 future 를 차례로 완료시킨다.
+        for (int i = 0; i < futures.size(); i++) {
+            futures.get(i).complete(completedSendResult("market." + rows.get(i).getEventType().toLowerCase()));
+        }
+
+        try { t.join(2_000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+        // 모든 row 가 markPublished 되었어야 한다
+        for (OutboxJpaEntity row : rows) {
+            verify(outbox).markPublished(eq(row.getId()), any(Instant.class));
+        }
+    }
+
+    private static SendResult<String, String> completedSendResult(String topic) {
+        var record = new ProducerRecord<String, String>(topic, "k", "v");
+        var meta = new RecordMetadata(new TopicPartition(topic, 0), 0L, 0, 0L, 0, 0);
+        return new SendResult<>(record, meta);
     }
 
     private static final AtomicInteger SEQ = new AtomicInteger();
