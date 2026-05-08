@@ -12,6 +12,7 @@ import com.example.market.application.exception.RefundNotFoundException
 import com.example.market.application.exception.SkuNotFoundException
 import com.example.market.application.exception.TradeNotFoundException
 import com.example.market.application.exception.UnauthorizedTradeOperationException
+import com.example.market.application.pagination.CursorCodec
 import com.example.market.application.port.out.IdempotencyKeyStore.DuplicateRequestException
 import com.example.market.domain.trading.BidOwnershipViolation
 import com.example.market.domain.trading.ListingOwnershipViolation
@@ -84,6 +85,11 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
     @ExceptionHandler(IllegalStateException::class)
     fun handleIllegalState(e: IllegalStateException) =
         body(HttpStatus.CONFLICT, "ILLEGAL_STATE", e.message ?: "illegal state")
+
+    /** 클라이언트가 깨진 / 위조된 cursor 를 보낸 경우 — 400 + 명확한 error code. */
+    @ExceptionHandler(CursorCodec.InvalidCursorException::class)
+    fun handleInvalidCursor(e: CursorCodec.InvalidCursorException) =
+        body(HttpStatus.BAD_REQUEST, "INVALID_CURSOR", "invalid cursor")
 
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleIllegalArgument(e: IllegalArgumentException) =

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 @RequiredArgsConstructor
@@ -39,6 +40,19 @@ public class JpaTradeRepositoryAdapter implements TradeRepository {
     @Override
     public List<Trade> findByStatus(TradeStatus status, int limit) {
         return jpa.findByStatus(status, PageRequest.of(0, limit))
+                .stream().map(TradeJpaMapper::toDomain).toList();
+    }
+
+    @Override
+    public List<Trade> findByUserCursor(String userId, Instant afterTime, UUID afterId, int limit) {
+        // 첫 페이지 (cursor 없음) 와 그 다음 페이지 (cursor 있음) 의 query 가 다름 — JPA 의 동적
+        // 비교를 OR 분기 대신 메서드 분리 (인덱스 plan 도 더 단순).
+        PageRequest page = PageRequest.of(0, limit);
+        if (afterTime == null || afterId == null) {
+            return jpa.findByUserFirstPage(userId, page)
+                    .stream().map(TradeJpaMapper::toDomain).toList();
+        }
+        return jpa.findByUserAfter(userId, afterTime, afterId, page)
                 .stream().map(TradeJpaMapper::toDomain).toList();
     }
 }

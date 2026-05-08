@@ -1,10 +1,12 @@
 package com.example.market.adapter.web
 
+import com.example.market.adapter.web.dto.CursorPageResponse
 import com.example.market.adapter.web.dto.MarketStatsResponse
 import com.example.market.adapter.web.dto.OhlcCandleView
 import com.example.market.adapter.web.dto.OhlcCandlesResponse
 import com.example.market.adapter.web.dto.PriceTickView
 import com.example.market.adapter.web.dto.PriceTicksResponse
+import com.example.market.application.pagination.Cursor
 import com.example.market.application.port.`in`.MarketDataQueryUseCase
 import com.example.market.domain.catalog.SkuId
 import com.example.market.domain.marketdata.OhlcPeriod
@@ -81,6 +83,35 @@ class MarketDataController(
             to = to,
             ticks = ticks,
         ))
+    }
+
+    /**
+     * 체결 틱 — cursor pagination (ADR-0025). 실시간 차트 follow-up 용.
+     *
+     * - `cursor` 미전달 = 가장 오래된 틱부터 (또는 SKU 의 가장 처음 틱)
+     * - 응답의 `nextCursor` 를 그대로 다음 요청에 포함하면 *그 다음 묶음* 만 받아옴
+     * - WebSocket push 에 비해 *클라이언트 시작* 으로 폴링이 가능. 차트 백필 (back-fill) 에도 적합.
+     */
+    @GetMapping("/ticks/{skuId}/cursor")
+    @Operation(summary = "체결 틱 cursor pagination — 무한 스크롤 / 차트 백필")
+    fun ticksCursor(
+        @PathVariable skuId: String,
+        @RequestParam(required = false) cursor: String?,
+        @RequestParam(defaultValue = "200") @Min(1) @Max(1000) limit: Int,
+    ): ResponseEntity<CursorPageResponse<PriceTickView>> {
+        val page = marketData.ticksAfter(SkuId.of(skuId), Cursor.of(cursor ?: ""), limit)
+        return ResponseEntity.ok(
+            CursorPageResponse(
+                items = page.items().map {
+                    PriceTickView(
+                        tradeId = it.tradeId().toString(),
+                        price = it.price().amount(),
+                        occurredAt = it.occurredAt().toString(),
+                    )
+                },
+                nextCursor = page.nextCursor().map { it.token() }.orElse(null),
+            )
+        )
     }
 
     @GetMapping("/ohlc/{skuId}")

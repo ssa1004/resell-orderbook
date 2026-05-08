@@ -1,5 +1,8 @@
 package com.example.market.application.service;
 
+import com.example.market.application.pagination.Cursor;
+import com.example.market.application.pagination.CursorCodec;
+import com.example.market.application.pagination.CursorPage;
 import com.example.market.application.port.in.MarketDataQueryUseCase;
 import com.example.market.application.port.in.OrderBookQueryUseCase;
 import com.example.market.application.port.out.MarketStatsCache;
@@ -87,5 +90,26 @@ public class MarketDataQueryService implements MarketDataQueryUseCase {
     @Override
     public List<OhlcCandle> ohlc(SkuId skuId, OhlcPeriod period, Instant from, Instant to, int limit) {
         return candles.findBySkuInRange(skuId, period, from, to, limit);
+    }
+
+    /**
+     * 체결 틱 cursor pagination — Snowflake long ID 가 시간 단조 증가라 *단일 long cursor* 만으로
+     * 결정성 보장 (Trade history 와 달리 UUID tie-breaker 불필요).
+     *
+     * <p>N+1 패턴 — limit + 1 row 를 조회해 다음 페이지 존재 판정.</p>
+     */
+    @Override
+    public CursorPage<PriceTick> ticksAfter(SkuId skuId, Cursor after, int limit) {
+        int safeLimit = Math.max(1, Math.min(1000, limit));
+        long afterId = (after == null || after.isEmpty()) ? 0L : CursorCodec.decodeLong(after);
+
+        List<PriceTick> raw = ticks.findBySkuAfter(skuId, afterId, safeLimit + 1);
+
+        if (raw.size() <= safeLimit) {
+            return CursorPage.last(raw);
+        }
+        List<PriceTick> page = raw.subList(0, safeLimit);
+        long boundaryId = page.get(safeLimit - 1).id();
+        return CursorPage.of(page, CursorCodec.encodeLong(boundaryId));
     }
 }

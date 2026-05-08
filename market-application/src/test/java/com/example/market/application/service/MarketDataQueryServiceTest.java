@@ -1,5 +1,8 @@
 package com.example.market.application.service;
 
+import com.example.market.application.pagination.Cursor;
+import com.example.market.application.pagination.CursorCodec;
+import com.example.market.application.pagination.CursorPage;
 import com.example.market.application.port.in.OrderBookQueryUseCase;
 import com.example.market.application.port.in.OrderBookQueryUseCase.OrderBookView;
 import com.example.market.application.port.out.PriceTickRepository;
@@ -139,5 +142,54 @@ class MarketDataQueryServiceTest {
 
         MarketStats s = service.currentStats(SKU);
         assertThat(s.asOf()).isEqualTo(NOW);
+    }
+
+    // ── ticksAfter (cursor pagination, ADR-0025) ─────────────────
+
+    @Test
+    void ticksAfter_lessThanLimit_returnsLastPage() {
+        TradeId tradeId = TradeId.of(UUID.randomUUID().toString());
+        List<PriceTick> rows = List.of(
+                new PriceTick(101L, tradeId, SKU, won(150_000), NOW),
+                new PriceTick(102L, tradeId, SKU, won(151_000), NOW)
+        );
+        // limit + 1 만큼 요청해도 2 row 만 돌아옴 → last page.
+        when(ticks.findBySkuAfter(eq(SKU), eq(0L), eq(11))).thenReturn(rows);
+
+        CursorPage<PriceTick> page = service.ticksAfter(SKU, Cursor.empty(), 10);
+
+        assertThat(page.items()).hasSize(2);
+        assertThat(page.nextCursor()).isEmpty();
+    }
+
+    @Test
+    void ticksAfter_moreThanLimit_returnsNextCursor() {
+        TradeId tradeId = TradeId.of(UUID.randomUUID().toString());
+        // limit 5 → 6 row 받음 (N+1) → 5 개만 반환 + nextCursor.
+        List<PriceTick> rows = new java.util.ArrayList<>();
+        for (long id = 100L; id < 106L; id++) {
+            rows.add(new PriceTick(id, tradeId, SKU, won(150_000), NOW));
+        }
+        when(ticks.findBySkuAfter(eq(SKU), eq(0L), eq(6))).thenReturn(rows);
+
+        CursorPage<PriceTick> page = service.ticksAfter(SKU, Cursor.empty(), 5);
+
+        assertThat(page.items()).hasSize(5);
+        assertThat(page.nextCursor()).isPresent();
+
+        // nextCursor 가 *반환된 마지막* row (id 104) 의 id 와 일치.
+        long decoded = CursorCodec.decodeLong(page.nextCursor().get());
+        assertThat(decoded).isEqualTo(104L);
+    }
+
+    @Test
+    void ticksAfter_decodesCursorAndPassesAfterId() {
+        Cursor cursor = CursorCodec.encodeLong(500L);
+        when(ticks.findBySkuAfter(eq(SKU), eq(500L), eq(11))).thenReturn(List.of());
+
+        CursorPage<PriceTick> page = service.ticksAfter(SKU, cursor, 10);
+
+        assertThat(page.items()).isEmpty();
+        assertThat(page.nextCursor()).isEmpty();
     }
 }
