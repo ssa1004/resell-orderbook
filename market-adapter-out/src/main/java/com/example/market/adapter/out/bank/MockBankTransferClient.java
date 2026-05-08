@@ -15,7 +15,7 @@ import java.util.UUID;
  * 그대로 INFO 로그에 박지 않는다 — 운영 추적용 단서만 남기고 정확한 값은
  * {@link SensitiveLogging#mask}/{@link SensitiveLogging#maskAmount} 로 가린다.</p>
  */
-@Component
+@Component("rawBankTransferClient")
 @ConditionalOnProperty(name = "market.bank.enabled", havingValue = "false", matchIfMissing = true)
 @Slf4j
 public class MockBankTransferClient implements BankTransferClient {

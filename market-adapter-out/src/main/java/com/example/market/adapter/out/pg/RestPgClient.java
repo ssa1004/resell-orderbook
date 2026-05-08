@@ -20,7 +20,7 @@ import org.springframework.web.client.RestClient;
  * <p>HTTP 호출은 Spring 6.1 이상의 RestClient 를 사용한다 (가상 스레드와 잘 맞고, OpenFeign
  * 보다 최신).</p>
  */
-@Component
+@Component("rawPgClient")
 @ConditionalOnProperty(name = "market.pg.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j

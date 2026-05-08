@@ -111,6 +111,25 @@ market:
     shipping-fee: 3000
     fixed-processing-fee: 1000
 
+  bulkhead:
+    # 외부 호출 격리 풀 (ADR-0021). dev 는 비활성 (단일 인스턴스 + Mock 어댑터라 불필요).
+    enabled: false
+    instances:
+      # PG (결제 게이트웨이) — peak 50 req/s × p99 200ms 가정 → 동시성 ≈ 10. 여유 50% 더해 코어 16.
+      pg:
+        core-size: 16
+        max-pool-size: 16
+        queue-capacity: 32
+        await-timeout: 1s
+        retry-after-seconds: 1
+      # 은행 송금 — 호출 빈도 낮음 (정산 worker 가 직렬 처리 가깝게). 코어 8 로 충분.
+      bank:
+        core-size: 8
+        max-pool-size: 8
+        queue-capacity: 16
+        await-timeout: 2s
+        retry-after-seconds: 2
+
 # Resilience4j — 외부 PG (결제 게이트웨이) 호출에 회로 차단기 + 재시도 적용 (ADR-0009).
 resilience4j:
   circuitbreaker:
@@ -169,3 +188,5 @@ market:
   outbox:
     relay:
       enabled: true
+  bulkhead:
+    enabled: true

@@ -12,7 +12,7 @@ import java.util.UUID;
  *
  * <p>실패 시뮬: idempotencyKey 가 "FAIL_" 로 시작하면 reject.</p>
  */
-@Component
+@Component("rawPgClient")
 @ConditionalOnProperty(name = "market.pg.enabled", havingValue = "false", matchIfMissing = true)
 @Slf4j
 public class MockPgClient implements PgClient {
