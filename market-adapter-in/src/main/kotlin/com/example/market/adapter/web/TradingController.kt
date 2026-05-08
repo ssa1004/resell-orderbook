@@ -10,6 +10,7 @@ import com.example.market.adapter.web.dto.PlaceListingResponse
 import com.example.market.adapter.web.dto.TradeResponse
 import com.example.market.adapter.web.dto.toBuyNowCommand
 import com.example.market.adapter.web.dto.toSellNowCommand
+import com.example.market.adapter.web.ratelimit.RateLimited
 import com.example.market.application.command.CancelBidCommand
 import com.example.market.application.command.CancelListingCommand
 import com.example.market.application.port.`in`.BuyNowUseCase
@@ -61,6 +62,7 @@ class TradingController(
 
     @PostMapping("/listings")
     @Operation(summary = "판매 호가(ASK) 등록 + 즉시 매칭 시도")
+    @RateLimited(capacity = 20, refillTokens = 5)
     fun place(
         @AuthenticationPrincipal jwt: Jwt?,
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
@@ -90,6 +92,7 @@ class TradingController(
 
     @PostMapping("/bids")
     @Operation(summary = "구매 호가(BID) 등록 + 즉시 매칭 시도")
+    @RateLimited(capacity = 20, refillTokens = 5)
     fun placeBid(
         @AuthenticationPrincipal jwt: Jwt?,
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
@@ -119,6 +122,7 @@ class TradingController(
 
     @PostMapping("/trades/buy-now")
     @Operation(summary = "즉시 구매 — Lowest ASK 매칭")
+    @RateLimited(capacity = 10, refillTokens = 2)
     fun buyNow(
         @AuthenticationPrincipal jwt: Jwt?,
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
@@ -132,6 +136,7 @@ class TradingController(
 
     @PostMapping("/trades/sell-now")
     @Operation(summary = "즉시 판매 — Highest BID 매칭")
+    @RateLimited(capacity = 10, refillTokens = 2)
     fun sellNow(
         @AuthenticationPrincipal jwt: Jwt?,
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
