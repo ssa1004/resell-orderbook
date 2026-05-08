@@ -29,3 +29,4 @@
 | [0023](0023-idempotent-saga-compensation.md) | SAGA 보상 트랜잭션의 명시 멱등성 — Compensation Log | 적용 |
 | [0024](0024-hikaricp-tuning-and-leak-detection.md) | HikariCP 풀 크기 튜닝과 connection leak detection | 적용 |
 | [0025](0025-cursor-based-pagination.md) | Cursor-based pagination — OFFSET 의 뒷페이지 절벽 회피 | 적용 |
+| [0026](0026-retry-with-exponential-backoff-and-jitter.md) | 외부 호출 retry — exponential backoff + jitter | 적용 |

@@ -35,6 +35,8 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:kafka")
+    // Resilience4j retry / circuit-breaker — application.yml 의 instance 검증 테스트가 직접 사용
+    testImplementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
 }
 
 tasks.named("bootJar") {

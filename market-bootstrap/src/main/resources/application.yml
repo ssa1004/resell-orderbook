@@ -145,7 +145,7 @@ market:
         await-timeout: 2s
         retry-after-seconds: 2
 
-# Resilience4j — 외부 PG (결제 게이트웨이) 호출에 회로 차단기 + 재시도 적용 (ADR-0009).
+# Resilience4j — 외부 호출에 회로 차단기 + 재시도 적용 (ADR-0009 / ADR-0026).
 resilience4j:
   circuitbreaker:
     instances:
@@ -156,12 +156,61 @@ resilience4j:
         waitDurationInOpenState: 30s                # OPEN 유지 시간 — 이후 HALF_OPEN 으로 시험 호출 허용
         permittedNumberOfCallsInHalfOpenState: 3    # HALF_OPEN 에서 허용할 시험 호출 수 (모두 성공 시 CLOSED 복귀)
   retry:
+    # ── 공통 정책 (ADR-0026) ──────────────────────────────────────
+    # 1) 4xx 는 retry 안 함 (client 잘못 — 재시도해도 같은 4xx). 5xx / IOException 만 retry.
+    # 2) exponential backoff (200ms → 400ms → 800ms) 로 외부에 burst 부담을 누적시키지 않는다.
+    # 3) randomized-wait-factor 로 jitter 추가 — 100 client 가 동시에 같은 503 을 받고 한꺼번에
+    #    재시도하는 *thundering herd* 방지. AWS 의 "Exponential Backoff and Jitter" (2015) 가 기본
+    #    표준으로 자리 잡은 이래 Stripe / 토스페이먼츠 SDK 모두 같은 패턴.
     instances:
       pg:
         maxAttempts: 3                              # 첫 시도 + 재시도 최대 (3회 = 첫 1 + 재시도 2)
-        waitDuration: 200ms                         # 첫 재시도 대기
-        enableExponentialBackoff: true              # 매 재시도마다 대기를 multiplier 배로 — burst 누적 완화
+        waitDuration: 200ms                         # 첫 재시도 대기 (base)
+        enableExponentialBackoff: true              # 매 재시도마다 대기를 multiplier 배로
         exponentialBackoffMultiplier: 2             # 200ms → 400ms → 800ms ...
+        # jitter — base wait 의 ±50% 안에서 random. Resilience4j 는 *equal jitter* 와 비슷한
+        # `wait × (1 ± factor)` 형태. 여러 client 가 같은 시점에 retry 하지 않도록 분산.
+        randomizedWaitFactor: 0.5
+        # retry 대상 = transient. SocketTimeout / ConnectException 같은 네트워크 블립과
+        # 5xx 매핑 RuntimeException (RestClient 의 HttpServerErrorException) 만 재시도.
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.ResourceAccessException
+        # 4xx 는 재시도해도 같은 결과 — 명시적으로 ignore.
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException
+      bank:
+        # 운영 은행 어댑터로 진화 시 적용. mock 단계에서 정의해 두면 어댑터 추가 시 yml 변경 없음.
+        # 송금은 *멱등성 보장 후* 에만 retry 가 안전 — idempotency-key 가 있어 같은 key 로 두 번
+        # 실행되어도 한 번으로 수렴 (ADR-0008). 그래서 retry 자체는 안전.
+        maxAttempts: 3
+        waitDuration: 500ms                         # 은행 API 의 일반 SLA 가 PG 보다 길어 base 도 더 큼
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2             # 500ms → 1s → 2s
+        randomizedWaitFactor: 0.5
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.ResourceAccessException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException
+      inspection-center:
+        # 검수센터 외부 API (운영 진화 시). 검수 슬롯 조회 / 예약 결과 통보 등.
+        maxAttempts: 3
+        waitDuration: 300ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2             # 300ms → 600ms → 1200ms
+        randomizedWaitFactor: 0.5
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.ResourceAccessException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpClientErrorException
 
 ---
 spring:
