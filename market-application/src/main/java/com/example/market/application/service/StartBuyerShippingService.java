@@ -40,6 +40,7 @@ public class StartBuyerShippingService implements StartBuyerShippingUseCase {
         var ev = trade.startBuyerShipping(clock.instant());
         trades.save(trade);
         events.publish(ev);
-        log.info("buyer shipping started trade={} tracking={}", trade.id(), cmd.trackingNumber());
+        log.info("buyer shipping started trade={} tracking={}",
+                trade.id(), SensitiveLogging.mask(cmd.trackingNumber()));
     }
 }

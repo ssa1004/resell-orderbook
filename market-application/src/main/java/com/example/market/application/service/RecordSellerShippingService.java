@@ -36,6 +36,7 @@ public class RecordSellerShippingService implements RecordSellerShippingUseCase 
         var ev = trade.startSellerShipping(now);
         trades.save(trade);
         events.publish(ev);
-        log.info("seller shipping recorded trade={} tracking={}", trade.id(), cmd.trackingNumber());
+        log.info("seller shipping recorded trade={} tracking={}",
+                trade.id(), SensitiveLogging.mask(cmd.trackingNumber()));
     }
 }
