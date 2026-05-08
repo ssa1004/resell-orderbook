@@ -38,6 +38,7 @@ class InspectionController(
     private val assignInspector: AssignInspectorUseCase,
     private val recordResult: RecordInspectionResultUseCase,
     private val inspections: InspectionRequestRepository,
+    private val callerExtractor: CallerExtractor,
 ) {
 
     @PostMapping("/arrive")
@@ -64,7 +65,7 @@ class InspectionController(
         @PathVariable id: String,
         @Valid @RequestBody req: RecordInspectionResultRequest,
     ): InspectionRequestResponse {
-        val caller = CallerExtractor.from(jwt)
+        val caller = callerExtractor.from(jwt)
         val request = recordResult.record(req.toCommand(caller.userId(), InspectionRequestId.of(id)))
         return InspectionRequestResponse.from(request)
     }

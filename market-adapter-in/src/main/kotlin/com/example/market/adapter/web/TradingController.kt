@@ -50,6 +50,7 @@ class TradingController(
     private val cancelListing: CancelListingUseCase,
     private val cancelBid: CancelBidUseCase,
     private val orderBookQuery: OrderBookQueryUseCase,
+    private val callerExtractor: CallerExtractor,
 ) {
 
     // ── ASK ────────────────────────────────────
@@ -61,7 +62,7 @@ class TradingController(
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @RequestBody req: PlaceListingRequest,
     ): ResponseEntity<PlaceListingResponse> {
-        val caller = CallerExtractor.from(jwt)
+        val caller = callerExtractor.from(jwt)
         val result = placeListing.place(req.toCommand(idempotencyKey, caller.userId()))
         val body = PlaceListingResponse(
             listingId = result.listingId().toString(),
@@ -76,7 +77,7 @@ class TradingController(
         @AuthenticationPrincipal jwt: Jwt?,
         @PathVariable id: String,
     ): ResponseEntity<Void> {
-        val caller = CallerExtractor.from(jwt)
+        val caller = callerExtractor.from(jwt)
         cancelListing.cancel(CancelListingCommand(caller.userId(), ListingId.of(id)))
         return ResponseEntity.noContent().build()
     }
@@ -90,7 +91,7 @@ class TradingController(
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @RequestBody req: PlaceBidRequest,
     ): ResponseEntity<PlaceBidResponse> {
-        val caller = CallerExtractor.from(jwt)
+        val caller = callerExtractor.from(jwt)
         val result = placeBid.place(req.toCommand(idempotencyKey, caller.userId()))
         val body = PlaceBidResponse(
             bidId = result.bidId().toString(),
@@ -105,7 +106,7 @@ class TradingController(
         @AuthenticationPrincipal jwt: Jwt?,
         @PathVariable id: String,
     ): ResponseEntity<Void> {
-        val caller = CallerExtractor.from(jwt)
+        val caller = callerExtractor.from(jwt)
         cancelBid.cancel(CancelBidCommand(caller.userId(), BidId.of(id)))
         return ResponseEntity.noContent().build()
     }
@@ -119,7 +120,7 @@ class TradingController(
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @RequestBody req: InstantTradeRequest,
     ): ResponseEntity<TradeResponse> {
-        val caller = CallerExtractor.from(jwt)
+        val caller = callerExtractor.from(jwt)
         val trade = buyNow.buyNow(req.toBuyNowCommand(idempotencyKey, caller.userId()))
         return ResponseEntity.created(URI.create("/api/v1/trades/${trade.id()}"))
             .body(TradeResponse.from(trade))
@@ -132,7 +133,7 @@ class TradingController(
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @RequestBody req: InstantTradeRequest,
     ): ResponseEntity<TradeResponse> {
-        val caller = CallerExtractor.from(jwt)
+        val caller = callerExtractor.from(jwt)
         val trade = sellNow.sellNow(req.toSellNowCommand(idempotencyKey, caller.userId()))
         return ResponseEntity.created(URI.create("/api/v1/trades/${trade.id()}"))
             .body(TradeResponse.from(trade))

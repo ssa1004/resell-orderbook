@@ -7,11 +7,12 @@ import com.example.market.domain.catalog.SkuId;
 import com.example.market.domain.marketdata.OhlcCandle;
 import com.example.market.domain.marketdata.OhlcPeriod;
 import com.example.market.domain.marketdata.PriceTick;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -31,11 +32,12 @@ import java.util.List;
  *
  * <p><b>왜 버킷이 이미 닫혀 있어야 하나</b>: 진행 중인 버킷을 집계하면 배치 이후에 들어온 tick
  * 이 그 candle 에 누락된다 (이미 INSERT 한 candle 은 수정 안 됨 — append-only). 호출자 (스케줄러)
- * 는 직전 버킷만 넘겨야 안전.
+ * 는 직전 버킷만 넘겨야 안전.</p>
  *
- * <p><b>왜 SKU 별로 트랜잭션을 따로 만들지 않나</b>: 한 배치 (한 버킷) 에서 거래된 SKU 수가
- * 보통 적다 (수십 개 미만). 한 트랜잭션 안에서 다 처리하는 게 단순 + 빠름. 트래픽이 늘어
- * SKU 수가 수천이 되면 SKU 별로 chunk + saveAll 로 분리.</p>
+ * <p><b>왜 SKU 별로 트랜잭션을 따로 묶나</b>: 한 SKU 의 INSERT 가 UNIQUE 제약 위반으로 실패하면
+ * 그 트랜잭션만 rollback 되고 다른 SKU 처리는 그대로 진행된다. 한 트랜잭션으로 묶어 두면
+ * Hibernate flush 시 한 SKU 의 위반이 트랜잭션 전체를 rollback-only 로 만들어버려 같은 배치의
+ * 나머지 SKU 들이 모두 {@code UnexpectedRollbackException} 으로 실패한다.</p>
  *
  * <p><b>중복 INSERT 처리</b>: 같은 (sku, period, bucket) 이 이미 있으면 UNIQUE 제약 위반 →
  * DataIntegrityViolationException 발생. 보통 스케줄러가 한 번 더 돌았다는 뜻이라 (인스턴스가
@@ -43,18 +45,27 @@ import java.util.List;
  * 막지 않는다.</p>
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class OhlcAggregationService implements OhlcAggregationUseCase {
 
     private final PriceTickRepository ticks;
     private final OhlcCandleRepository candles;
+    private final TransactionTemplate perSkuTx;
 
     /** 한 SKU 의 한 버킷 안 tick 수가 이 값을 넘으면 청크로 잘라 처리 (메모리 폭증 방지). */
     private static final int MAX_TICKS_PER_BUCKET = 10_000;
 
+    public OhlcAggregationService(PriceTickRepository ticks,
+                                  OhlcCandleRepository candles,
+                                  PlatformTransactionManager transactionManager) {
+        this.ticks = ticks;
+        this.candles = candles;
+        // 각 SKU INSERT 를 짧은 트랜잭션 한 개로 — 한 SKU 실패가 다른 SKU 에 번지지 않음.
+        this.perSkuTx = new TransactionTemplate(transactionManager);
+        this.perSkuTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
     @Override
-    @Transactional
     public int aggregateBucket(OhlcPeriod period, Instant bucketStart) {
         Instant bucketEnd = bucketStart.plus(period.duration());
 
@@ -67,12 +78,15 @@ public class OhlcAggregationService implements OhlcAggregationUseCase {
         int written = 0;
         for (SkuId skuId : activeSkus) {
             try {
-                List<PriceTick> bucketTicks = ticks.findBySkuInRange(
-                        skuId, bucketStart, bucketEnd, MAX_TICKS_PER_BUCKET);
-                if (bucketTicks.isEmpty()) continue;   // SKU 가 마지막 순간 거래 회수 (드문 경우)
-                OhlcCandle candle = OhlcCandle.from(skuId, period, bucketStart, bucketTicks);
-                candles.save(candle);
-                written++;
+                Boolean saved = perSkuTx.execute(status -> {
+                    List<PriceTick> bucketTicks = ticks.findBySkuInRange(
+                            skuId, bucketStart, bucketEnd, MAX_TICKS_PER_BUCKET);
+                    if (bucketTicks.isEmpty()) return false;
+                    OhlcCandle candle = OhlcCandle.from(skuId, period, bucketStart, bucketTicks);
+                    candles.save(candle);
+                    return true;
+                });
+                if (Boolean.TRUE.equals(saved)) written++;
             } catch (DataIntegrityViolationException dup) {
                 // UNIQUE 위반 — 이전 배치가 이미 처리한 버킷. 멱등 동작이라 정상 흐름.
                 log.debug("ohlc duplicate (already aggregated) sku={} period={} bucket={}",

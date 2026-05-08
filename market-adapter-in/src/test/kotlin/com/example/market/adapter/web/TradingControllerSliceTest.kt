@@ -1,5 +1,6 @@
 package com.example.market.adapter.web
 
+import com.example.market.adapter.web.auth.CallerExtractor
 import com.example.market.adapter.web.exception.GlobalExceptionHandler
 import com.example.market.application.port.`in`.BuyNowUseCase
 import com.example.market.application.port.`in`.CancelBidUseCase
@@ -56,6 +57,7 @@ class TradingControllerSliceTest {
         val controller = TradingController(
             placeListing, placeBid, buyNow, sellNow,
             cancelListing, cancelBid, orderBookQuery,
+            CallerExtractor(jwtEnabled = false),
         )
         mockMvc = MockMvcBuilders
             .standaloneSetup(controller)

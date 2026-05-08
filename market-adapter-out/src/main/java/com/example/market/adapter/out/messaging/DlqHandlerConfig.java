@@ -15,7 +15,8 @@ import org.springframework.util.backoff.FixedBackOff;
  *
  * <p>DLQ topic 명: {@code <원본>-dlt}.</p>
  *
- * <p>DLQ 의 메시지는 {@code DlqAdminController.replay} (adapter-in) 로 수동 재처리 가능.</p>
+ * <p>현재 DLQ 메시지를 자동으로 재처리하는 endpoint 는 없다. 운영자가 Kafka 에서 직접 옮기거나
+ * 별도 도구로 재처리한다 (admin replay endpoint 추가는 후속 과제).</p>
  */
 @Configuration
 @RequiredArgsConstructor

@@ -4,12 +4,10 @@ import com.example.market.adapter.out.persistence.jpa.mapper.InspectionAppointme
 import com.example.market.adapter.out.persistence.jpa.repository.SpringDataInspectionAppointmentRepository;
 import com.example.market.application.port.out.InspectionAppointmentRepository;
 import com.example.market.domain.inspection.scheduling.AppointmentId;
-import com.example.market.domain.inspection.scheduling.AppointmentStatus;
 import com.example.market.domain.inspection.scheduling.InspectionAppointment;
 import com.example.market.domain.inspection.scheduling.InspectionCenterId;
 import com.example.market.domain.trading.TradeId;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -53,15 +51,6 @@ public class JpaInspectionAppointmentRepositoryAdapter implements InspectionAppo
     @Override
     public List<InspectionAppointment> findActiveByTrade(TradeId tradeId) {
         return jpa.findActiveByTrade(tradeId.value()).stream()
-                .map(InspectionAppointmentJpaMapper::toDomain)
-                .toList();
-    }
-
-    @Override
-    public List<InspectionAppointment> findStaleReservations(Instant cutoff, int limit) {
-        return jpa.findByStatusAndSlotEndBefore(AppointmentStatus.RESERVED, cutoff,
-                        PageRequest.of(0, limit))
-                .stream()
                 .map(InspectionAppointmentJpaMapper::toDomain)
                 .toList();
     }

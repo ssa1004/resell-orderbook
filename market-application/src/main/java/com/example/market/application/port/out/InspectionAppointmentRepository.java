@@ -27,7 +27,4 @@ public interface InspectionAppointmentRepository {
 
     /** 한 trade 의 active 예약 — 중복 예약 방지. */
     List<InspectionAppointment> findActiveByTrade(TradeId tradeId);
-
-    /** No-show batch — slot_end 지난 RESERVED 들. */
-    List<InspectionAppointment> findStaleReservations(Instant cutoff, int limit);
 }

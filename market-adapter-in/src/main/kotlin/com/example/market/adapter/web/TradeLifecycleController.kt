@@ -33,6 +33,7 @@ class TradeLifecycleController(
     private val recordSellerShipping: RecordSellerShippingUseCase,
     private val completeTrade: CompleteTradeUseCase,
     private val trades: TradeRepository,
+    private val callerExtractor: CallerExtractor,
 ) {
 
     @PostMapping("/{id}/seller-shipping")
@@ -42,7 +43,7 @@ class TradeLifecycleController(
         @PathVariable id: String,
         @Valid @RequestBody req: RecordSellerShippingRequest,
     ): ResponseEntity<Void> {
-        val caller = CallerExtractor.from(jwt)
+        val caller = callerExtractor.from(jwt)
         recordSellerShipping.recordShipping(req.toCommand(caller.userId(), TradeId.of(id)))
         return ResponseEntity.noContent().build()
     }
@@ -53,7 +54,7 @@ class TradeLifecycleController(
         @AuthenticationPrincipal jwt: Jwt?,
         @PathVariable id: String,
     ): TradeResponse {
-        val caller = CallerExtractor.from(jwt)
+        val caller = callerExtractor.from(jwt)
         val trade = completeTrade.complete(CompleteTradeCommand(caller.userId(), TradeId.of(id)))
         return TradeResponse.from(trade)
     }

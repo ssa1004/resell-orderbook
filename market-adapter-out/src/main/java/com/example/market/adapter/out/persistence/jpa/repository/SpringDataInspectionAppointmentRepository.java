@@ -1,8 +1,6 @@
 package com.example.market.adapter.out.persistence.jpa.repository;
 
 import com.example.market.adapter.out.persistence.jpa.entity.InspectionAppointmentJpaEntity;
-import com.example.market.domain.inspection.scheduling.AppointmentStatus;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -53,8 +51,4 @@ public interface SpringDataInspectionAppointmentRepository
                                  com.example.market.domain.inspection.scheduling.AppointmentStatus.ARRIVED)
             """)
     List<InspectionAppointmentJpaEntity> findActiveByTrade(@Param("tradeId") UUID tradeId);
-
-    /** No-show batch — slot_end 지난 RESERVED 들. */
-    List<InspectionAppointmentJpaEntity> findByStatusAndSlotEndBefore(
-            AppointmentStatus status, Instant cutoff, Pageable pageable);
 }
