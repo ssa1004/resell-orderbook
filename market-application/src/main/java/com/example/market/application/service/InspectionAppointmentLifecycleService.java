@@ -1,10 +1,14 @@
 package com.example.market.application.service;
 
 import com.example.market.application.exception.InspectionExceptions;
+import com.example.market.application.exception.TradeNotFoundException;
 import com.example.market.application.port.in.InspectionAppointmentLifecycleUseCase;
 import com.example.market.application.port.out.InspectionAppointmentRepository;
+import com.example.market.application.port.out.TradeRepository;
 import com.example.market.domain.inspection.scheduling.AppointmentId;
 import com.example.market.domain.inspection.scheduling.InspectionAppointment;
+import com.example.market.domain.shared.UserId;
+import com.example.market.domain.trading.Trade;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,12 +22,23 @@ import java.time.Clock;
 public class InspectionAppointmentLifecycleService implements InspectionAppointmentLifecycleUseCase {
 
     private final InspectionAppointmentRepository appointments;
+    private final TradeRepository trades;
     private final Clock clock;
 
+    /**
+     * 셀러 본인 취소만 허용. 다른 사용자가 호출하면
+     * {@link InspectionExceptions.UnauthorizedAppointmentOperationException}.
+     */
     @Override
     @Transactional
-    public void cancel(AppointmentId id) {
+    public void cancel(UserId requestor, AppointmentId id) {
         InspectionAppointment a = load(id);
+        Trade trade = trades.findById(a.tradeId())
+                .orElseThrow(() -> new TradeNotFoundException(a.tradeId()));
+        if (!trade.sellerId().equals(requestor)) {
+            throw new InspectionExceptions.UnauthorizedAppointmentOperationException(
+                    id, requestor, "cancel");
+        }
         a.cancel(clock);
         appointments.save(a);
         log.info("appointment cancelled id={}", id);

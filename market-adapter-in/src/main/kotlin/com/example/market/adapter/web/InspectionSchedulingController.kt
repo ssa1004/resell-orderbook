@@ -1,5 +1,6 @@
 package com.example.market.adapter.web
 
+import com.example.market.adapter.web.auth.CallerExtractor
 import com.example.market.adapter.web.dto.AppointmentView
 import com.example.market.adapter.web.dto.AvailableSlotsResponse
 import com.example.market.adapter.web.dto.BookAppointmentRequest
@@ -19,6 +20,9 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -37,8 +41,13 @@ import java.util.UUID
  *   <li>{@code GET /inspection/centers} — 검수 센터 목록</li>
  *   <li>{@code GET /inspection/centers/{id}/slots?from=&to=} — 캘린더 뷰</li>
  *   <li>{@code POST /inspection/appointments} — 예약</li>
- *   <li>{@code POST /inspection/appointments/{id}/cancel | arrive | complete | reject}</li>
+ *   <li>{@code POST /inspection/appointments/{id}/cancel} — 셀러 본인 취소</li>
+ *   <li>{@code POST /inspection/appointments/{id}/arrive | complete | reject} — 운영자 전용</li>
  * </ul>
+ *
+ * <p>권한: {@code arrive / complete / reject} 는 {@code INSPECTOR / ADMIN} 역할 필요
+ * (운영자 전용). {@code cancel} 은 거래(Trade) 의 셀러 본인 — service 단에서 caller-vs-owner
+ * 검사. 단순 조회는 인증만 통과하면 OK.</p>
  */
 @RestController
 @RequestMapping("/api/v1/inspection")
@@ -48,6 +57,7 @@ class InspectionSchedulingController(
     private val availableSlots: AvailableSlotsQueryUseCase,
     private val lifecycle: InspectionAppointmentLifecycleUseCase,
     private val centers: InspectionCenterRepository,
+    private val callerExtractor: CallerExtractor,
 ) {
 
     @GetMapping("/centers")
@@ -98,24 +108,32 @@ class InspectionSchedulingController(
     }
 
     @PostMapping("/appointments/{id}/cancel")
-    fun cancel(@PathVariable id: String): ResponseEntity<Void> {
-        lifecycle.cancel(AppointmentId.of(id))
+    @Operation(summary = "셀러 본인 취소 — 다른 사용자 호출 시 403")
+    fun cancel(
+        @AuthenticationPrincipal jwt: Jwt?,
+        @PathVariable id: String,
+    ): ResponseEntity<Void> {
+        val caller = callerExtractor.from(jwt)
+        lifecycle.cancel(caller.userId(), AppointmentId.of(id))
         return ResponseEntity.noContent().build()
     }
 
     @PostMapping("/appointments/{id}/arrive")
+    @PreAuthorize("hasAnyRole('INSPECTOR','ADMIN')")
     fun arrive(@PathVariable id: String): ResponseEntity<Void> {
         lifecycle.markArrived(AppointmentId.of(id))
         return ResponseEntity.noContent().build()
     }
 
     @PostMapping("/appointments/{id}/complete")
+    @PreAuthorize("hasAnyRole('INSPECTOR','ADMIN')")
     fun complete(@PathVariable id: String): ResponseEntity<Void> {
         lifecycle.markCompleted(AppointmentId.of(id))
         return ResponseEntity.noContent().build()
     }
 
     @PostMapping("/appointments/{id}/reject")
+    @PreAuthorize("hasAnyRole('INSPECTOR','ADMIN')")
     fun reject(@PathVariable id: String): ResponseEntity<Void> {
         lifecycle.markRejected(AppointmentId.of(id))
         return ResponseEntity.noContent().build()

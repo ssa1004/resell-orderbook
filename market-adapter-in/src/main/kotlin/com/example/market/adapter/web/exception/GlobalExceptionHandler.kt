@@ -76,6 +76,7 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
         ListingOwnershipViolation::class,
         BidOwnershipViolation::class,
         UnauthorizedTradeOperationException::class,
+        InspectionExceptions.UnauthorizedAppointmentOperationException::class,
     )
     fun handleForbidden(e: RuntimeException) =
         body(HttpStatus.FORBIDDEN, "FORBIDDEN", e.message ?: "forbidden")

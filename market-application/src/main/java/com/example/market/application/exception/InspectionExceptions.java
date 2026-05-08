@@ -2,6 +2,7 @@ package com.example.market.application.exception;
 
 import com.example.market.domain.inspection.scheduling.AppointmentId;
 import com.example.market.domain.inspection.scheduling.InspectionCenterId;
+import com.example.market.domain.shared.UserId;
 import com.example.market.domain.trading.TradeId;
 
 import java.time.Instant;
@@ -22,6 +23,18 @@ public final class InspectionExceptions {
     public static class AppointmentNotFoundException extends RuntimeException {
         public AppointmentNotFoundException(AppointmentId id) {
             super("inspection appointment not found: " + id);
+        }
+    }
+
+    /**
+     * 예약 lifecycle 메서드를 호출한 사용자가 해당 거래의 셀러가 아니거나, 운영자/검수원
+     * 권한이 없을 때. Adapter-in 이 HTTP 403 으로 매핑.
+     */
+    public static class UnauthorizedAppointmentOperationException extends RuntimeException {
+        public UnauthorizedAppointmentOperationException(AppointmentId appointmentId,
+                                                          UserId requestor, String op) {
+            super("appointment " + appointmentId + " — requestor " + requestor
+                    + " not authorized for " + op);
         }
     }
 
