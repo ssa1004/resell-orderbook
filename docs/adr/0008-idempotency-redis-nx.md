@@ -16,12 +16,16 @@
 두 경로를 다르게 처리한다.
 
 - **사용자 요청**: `Idempotency-Key` 헤더 (클라이언트가 같은 요청임을 식별하기 위해 매기는
-  고유 키) 를 필수로 받는다. `IdempotencyKeyStore.acquireOrThrow(key)` 가 Redis NX (이미
-  키가 있으면 거부하는 SETNX 명령. dev 환경은 인메모리 맵) 로 키를 선점한다. 같은 키로 다시
-  들어오면 `DuplicateRequestException` → HTTP 409.
+  고유 키 — 보통 UUID. 같은 키 = 같은 의도된 요청) 를 필수로 받는다.
+  `IdempotencyKeyStore.acquireOrThrow(key)` 가 Redis NX (SET ... NX EX = 키가 없을 때만
+  세팅하고 TTL 부여. dev 환경은 인메모리 맵) 로 키를 선점한다. 같은 키로 다시 들어오면
+  `DuplicateRequestException` → HTTP 409. 트랜잭션이 rollback 되면 점유를 자동으로 풀어
+  사용자가 정당한 재시도에 자기 자신의 키 점유로 막히지 않게 한다 (`IdempotentExecution`
+  helper).
 - **시스템 트리거**: 컨슈머가 *현재 애그리거트 상태* 를 체크해서 자연스럽게 멱등하게 만든다.
-  예: `AuthorizePaymentService` 가 Trade 상태가 이미 PAYMENT_AUTHORIZED 면 결제사 호출을
-  건너뛴다.
+  별도 키 저장소 필요 없음. 예: `AuthorizePaymentService` 가 같은 `TradeMatched` 메시지를
+  Kafka 재전송으로 두 번 받아도, Trade 상태가 이미 `PAYMENT_AUTHORIZED` 면 결제사 호출을
+  건너뛴다 (도메인 상태 머신이 같은 전이를 두 번 허용하지 않음).
 
 ## 장단점
 - 사용자가 재시도해도 안전하다 — 같은 키로 다시 보내도 거래는 한 번만 발생.

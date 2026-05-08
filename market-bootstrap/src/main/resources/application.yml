@@ -74,16 +74,21 @@ market:
     jwt:
       enabled: false
   idempotency:
-    ttl-hours: 24
+    ttl-hours: 24                # Idempotency-Key 점유 기간 — TTL 지나면 같은 키 재사용 가능
   advisory-lock:
-    enabled: false               # H2 미지원 — prod (Postgres) 만 true
+    # 같은 SKU 매칭 / 같은 검수 슬롯 예약을 한 줄로 줄세우는 PostgreSQL advisory lock
+    # (= pg_advisory_xact_lock). H2 는 이 함수가 없어 dev 환경에서 끄고, 매칭 워커가 한
+    # 대뿐이라 race 가 사실상 없어 안전.
+    enabled: false               # prod (Postgres) 만 true
   outbox:
     relay:
-      enabled: false             # dev: kafka 비활성, prod: true
-      poll-interval-ms: 1000
-      batch-size: 100
-      send-timeout-ms: 5000
-      topic-prefix: "market."
+      # OutboxRelay = Outbox 테이블의 미발행 행을 Kafka 로 보내는 백그라운드 워커.
+      # dev 는 Kafka 자체를 끄므로 relay 도 함께 끔. prod 는 활성.
+      enabled: false
+      poll-interval-ms: 1000     # 미발행 행 폴링 주기 (= 도메인 commit ~ Kafka 발행 사이 지연 상한)
+      batch-size: 100            # 한 번 폴링에 처리할 최대 행 수
+      send-timeout-ms: 5000      # Kafka send 의 Future.get 타임아웃 (브로커 ack 기다리는 시간)
+      topic-prefix: "market."    # eventType 앞에 붙이는 토픽 접두사 (예: "market.trademathched")
   trade:
     payment-ttl-minutes: 15
   fee:
@@ -94,23 +99,23 @@ market:
     shipping-fee: 3000
     fixed-processing-fee: 1000
 
-# Resilience4j (PG)
+# Resilience4j — 외부 PG (결제 게이트웨이) 호출에 회로 차단기 + 재시도 적용 (ADR-0009).
 resilience4j:
   circuitbreaker:
     instances:
       pg:
-        slidingWindowSize: 20
-        minimumNumberOfCalls: 10
-        failureRateThreshold: 50
-        waitDurationInOpenState: 30s
-        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowSize: 20                       # 최근 호출 N건을 한 윈도우로 평가
+        minimumNumberOfCalls: 10                    # 윈도우에 최소 N건 모이기 전엔 평가 안 함 (시작 직후 통계 부족 보호)
+        failureRateThreshold: 50                    # 실패율 50% 초과 시 회로 OPEN (호출 차단)
+        waitDurationInOpenState: 30s                # OPEN 유지 시간 — 이후 HALF_OPEN 으로 시험 호출 허용
+        permittedNumberOfCallsInHalfOpenState: 3    # HALF_OPEN 에서 허용할 시험 호출 수 (모두 성공 시 CLOSED 복귀)
   retry:
     instances:
       pg:
-        maxAttempts: 3
-        waitDuration: 200ms
-        enableExponentialBackoff: true
-        exponentialBackoffMultiplier: 2
+        maxAttempts: 3                              # 첫 시도 + 재시도 최대 (3회 = 첫 1 + 재시도 2)
+        waitDuration: 200ms                         # 첫 재시도 대기
+        enableExponentialBackoff: true              # 매 재시도마다 대기를 multiplier 배로 — burst 누적 완화
+        exponentialBackoffMultiplier: 2             # 200ms → 400ms → 800ms ...
 
 ---
 spring:

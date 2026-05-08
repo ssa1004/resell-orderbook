@@ -32,7 +32,7 @@ expireStaleBidsJob) 은 정의만 있고 실행을 시작해주는 주체가 없
 
 - `MarketJobScheduler` 가 cron 표현식 기준으로 트리거
 - `@SchedulerLock` 으로 인스턴스 사이 잠금 (DB 시계 기준 — 모든 인스턴스가 같은 DB 시간을
-  보고 잠금 만료를 판단)
+  보고 잠금 만료를 판단. 인스턴스 자기 시계가 어긋나도 영향 없음)
 - shedlock 테이블은 Flyway 마이그레이션 V2 로 추가
 
 ```java
@@ -42,6 +42,12 @@ public void runAutoCancelStaleTrades() {
     jobLauncher.run(autoCancelStaleTradesJob, params);
 }
 ```
+
+- `lockAtMostFor = PT5M` — 락 자동 해제 한도. 락을 잡은 인스턴스가 죽거나 매달려도 5분
+  지나면 다른 인스턴스가 다음 cron 에 진입할 수 있다. 정상 실행 시간보다 충분히 길게.
+- `lockAtLeastFor = PT30S` — 작업이 일찍 끝나도 30초간은 락 유지. 시계가 어긋난 인스턴스가
+  같은 cron 시점에 두 번째 진입하는 것을 방지 (cron 1분 주기인데 작업이 5초만에 끝나
+  바로 락이 풀리면 시계가 빠른 다른 인스턴스가 같은 분에 또 들어올 수 있음).
 
 ### 스케줄 설계
 

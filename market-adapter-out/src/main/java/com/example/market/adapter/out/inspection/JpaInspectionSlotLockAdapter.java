@@ -32,18 +32,25 @@ public class JpaInspectionSlotLockAdapter implements InspectionSlotLockPort {
     }
 
     /**
-     * (centerId UUID, slotStart epoch-seconds) 를 64bit 정수 한 개로 압축한다.
+     * (centerId UUID, slotStart epoch-seconds) 를 64bit 정수 한 개로 압축한다 — advisory_xact_lock
+     * 의 인자 타입이 long 이므로 슬롯 식별자를 long 한 개에 담아야 한다.
      *
-     * <p>{@code Objects.hash(...)} 는 int 만 반환해 64bit 키 공간의 절반 (sign extension) 만
-     * 쓰게 되고, 다른 (center, slot) 쌍이 같은 정수로 떨어지는 false serialization (서로 무관한
-     * 두 슬롯이 같은 키 위에서 줄을 서버리는 현상) 위험이 늘어난다.</p>
+     * <p><b>왜 단순 해시로 안 되나</b>: {@code Objects.hash(...)} 는 int (32bit) 만 반환한다.
+     * advisory lock 키 공간은 64bit 인데 32bit 만 쓰면 표현 가능한 슬롯 수가 절반 이하로 줄고,
+     * 서로 무관한 두 (center, slot) 쌍이 우연히 같은 정수에 떨어질 확률이 늘어난다. 다른 두
+     * 슬롯이 같은 락 키 위에서 차례를 기다리는 false sharing 이 생기면 처리량이 떨어진다.</p>
      *
-     * <p>해법: 세 입력 (UUID 두 절반 + epoch-seconds) 을 64bit mixer (Stafford variant 13 — JDK
-     * SplittableRandom 의 finalizer 와 동일) 에 순차적으로 흘려 누적한다. mixer 자체가 64bit
-     * 전단사 (bijection) 라 단일 호출만으로도 잘 흩어지지만, 입력이 구조적이면 (순차 UUID +
-     * 인접 시각) XOR 단계의 비트 상관관계가 남을 수 있어 매 입력마다 한 번씩 mix → XOR 누적 →
-     * 다시 mix 의 패턴을 쓴다. 같은 (center, slot) 면 항상 같은 키 → 같은 슬롯끼리만
-     * 줄세워진다.</p>
+     * <p><b>해법</b>: 세 입력 (UUID 의 상위 64bit, 하위 64bit, epoch-seconds) 을 64bit avalanche
+     * mixer 에 순차로 흘려 누적한다. avalanche mixer 는 입력 비트 한 개만 바뀌어도 출력 절반
+     * 정도가 뒤집히는 함수 — 입력이 구조적으로 비슷해도 (예: 연속 UUID, 인접 시각) 출력은
+     * 균일하게 흩어진다. 여기 쓰는 함수는 Stafford variant 13 (Mix13), JDK 의
+     * {@link java.util.SplittableRandom} 이 내부적으로 쓰는 finalizer 와 같은 식이다.</p>
+     *
+     * <p><b>왜 매 입력마다 한 번씩 흘리나</b>: mixer 한 번만 거쳐도 64bit 안에서 일대일 (bijection)
+     * 로 흩어지지만, 세 입력을 한 번에 XOR 로 묶어 한 번만 mix 하면 입력이 구조적일 때 XOR 단계
+     * 의 비트 상관이 남는다. 입력 → mix → 다음 입력 XOR → 다시 mix 의 패턴으로 매 단계마다
+     * 누적 결과를 한 번씩 흔들어준다. 같은 (center, slot) 은 항상 같은 키 → 같은 슬롯 동시
+     * 시도만 같은 락 위에서 줄을 선다.</p>
      */
     static long lockKey(InspectionCenterId centerId, Instant slotStart) {
         UUID id = centerId.value();

@@ -51,12 +51,16 @@ STOMP 로 유도.
 
 ### 운영 고려
 
-- 메모리 안에서 동작하는 (in-memory) STOMP 브로커 한계: 단일 인스턴스에서 약 10,000 연결.
-  수만 도달 시 RabbitMQ STOMP 또는 ActiveMQ Artemis 같은 외부 relay broker (STOMP 메시지를
-  중계하는 별도 브로커) 로 교체. 코드는 그대로 (브로커만 바뀜).
-- 인스턴스가 여러 대일 때 broadcast 일관성: 각 인스턴스가 같은 Kafka 메시지를 수신하므로
-  자기에게 붙은 세션에만 broadcast. 자연스럽게 fan-out (한 이벤트가 모든 인스턴스의 구독자
-  에게 퍼지는 형태).
+- **in-memory STOMP 브로커** (Spring 의 `simpleBroker` — 메시지 라우팅을 별도 브로커 없이
+  자기 JVM 메모리 안에서 처리하는 모드) 의 한계는 단일 인스턴스 약 10,000 연결. 수만 단위
+  부하가 필요해지면 RabbitMQ STOMP / ActiveMQ Artemis 같은 외부 relay broker (STOMP 메시지를
+  여러 앱 인스턴스 사이에서 라우팅해주는 별도 프로세스) 로 교체. 애플리케이션 코드는 그대로
+  — 브로커 설정만 바뀐다.
+- **인스턴스가 여러 대일 때 broadcast 일관성**: 한 사용자의 STOMP 연결은 그 중 한 인스턴스에
+  만 붙는다. 인스턴스 A 가 받은 변경 이벤트를 B 에 붙은 구독자에게도 보내려면 분산 처리가
+  필요한데, 별도 코드 없이 Kafka 가 자연스럽게 해결한다 — 모든 인스턴스가 같은 변경
+  이벤트 토픽을 독립 consumer group 으로 구독하고, 자기에게 붙은 세션에만 broadcast. 한
+  매칭 이벤트가 모든 인스턴스의 구독자에게 퍼지는 fan-out 이 자동으로 성립.
 
 ## 결과
 

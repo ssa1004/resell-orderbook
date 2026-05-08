@@ -76,8 +76,11 @@ runOhlcOneMin() → ohlcService.closePreviousBucket(ONE_MIN, now)
 12:02:05 → batch 가 [12:01, 12:02) bucket 닫음
 ```
 
-5초 오프셋 (`5 * * * * *`) 은 *직전 분 마지막 tick 이 커밋되고 다른 트랜잭션에서 보이는 (visible)
-시점 이후* 에 집계가 도는 것을 보장한다.
+5초 오프셋 (`5 * * * * *` = 매 분 5초에 시작) 의 이유: 12:00:59 에 매칭이 일어나 트랜잭션이
+시작되면 commit 이 12:01:00 직후로 떨어질 수 있다. cron 이 12:01:00 정각에 돌면 그 tick 이
+다른 트랜잭션 (= 우리 집계 배치) 에서 아직 보이지 않을 (DB visibility) 가능성이 있다 — 마지막
+tick 이 누락된 candle 이 만들어지면 append-only 라 영원히 못 고친다. 5초 정도 미루면 직전 분
+의 모든 tick 이 안전하게 commit 후 visible 상태가 된다.
 
 ### 4개 cron — period 별 다른 빈도
 

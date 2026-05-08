@@ -33,19 +33,21 @@ SlotAvailability (read VO)
   - centerId, slotStart, totalCapacity, bookedCount, bookable
 ```
 
-### Slot 모델 — 미리 만들어두지 않음
+### Slot 모델 — 미리 만들어두지 않음 (암묵적 슬롯)
 
-흔한 대안: 매일 배치가 향후 30일치 슬롯 row 를 미리 만들어둠 (예: 9~18시 매시간 = 하루 9개
+흔한 대안: 매일 배치가 향후 30일치 슬롯 row 를 미리 INSERT (예: 9~18시 매시간 = 하루 9개
 × 30일 × 센터 N개 = 수천 행). 거부.
 
-대신 슬롯은 *암묵적* 으로 존재한다 — `(centerId, slotStart)` 튜플 자체가 슬롯의 키. 예약이
-들어올 때마다 도메인 메서드 `slotStartFor(desiredTime)` 가 시간을 슬롯 시작으로 정렬
-(14:23 → 14:00). 슬롯 row 가 없어도 capacity (수용 인원) 검사는 *해당 (센터, 슬롯시작) 의
-active appointment (현재 자리를 차지하고 있는 예약) 카운트* 로 한다.
+대신 슬롯은 *암묵적으로* 존재한다 — 따로 `slots` 테이블이 없고 `(centerId, slotStart)`
+튜플 자체가 슬롯의 식별자. 예약이 들어올 때마다 도메인 메서드 `slotStartFor(desiredTime)`
+가 요청 시각을 슬롯 시작 경계로 정렬한다 (예: 14:23 → 14:00). capacity (정원) 검사는
+별도 row 가 없어도 해당 슬롯에 들어 있는 active appointment (지금 자리를 차지하고 있는
+예약 = RESERVED + ARRIVED) 수를 그때그때 COUNT 해서 처리.
 
-장점: row 폭증 / 미리 만든 슬롯 정리 배치 모두 불필요.
-단점: 빈 슬롯까지 화면에 표시하려면 애플리케이션이 시간을 한 칸씩 짚어가며(walk) 슬롯
-리스트를 만들어야 함 (`AvailableSlotsQueryService`). — GROUP BY 쿼리 1번 + walk 라 빠름.
+- 장점: row 폭증 없음 / 미리 만든 슬롯을 나중에 정리하는 배치도 불필요.
+- 단점: 빈 슬롯까지 캘린더 화면에 표시하려면 시간을 슬롯 단위로 한 칸씩 짚어가며 (walk)
+  리스트를 만들어야 한다 (`AvailableSlotsQueryService`). 한 호출당 *GROUP BY 쿼리 1번
+  (예약 있는 슬롯의 카운트) + 시간 walk* 라 슬롯 수가 늘어도 응답 시간이 일정.
 
 ### Over-booking (정원 초과 예약) 방지 — advisory lock
 

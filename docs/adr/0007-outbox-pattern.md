@@ -14,11 +14,26 @@
 **Outbox 테이블 (보낼 이벤트를 잠시 저장해두는 테이블) + 별도 Relay (그 테이블을 읽어 실제로
 브로커로 보내는 워커).**
 
+```
+[도메인 트랜잭션]
+  Trade.match() / Trade.authorize() / ...
+  outbox INSERT (event row, published_at = NULL)
+  ───── COMMIT ─────                       ← 도메인 + 이벤트가 함께 커밋
+
+[별도 Relay 스레드 — @Scheduled 1초 주기 폴링]
+  SELECT * FROM outbox WHERE published_at IS NULL
+  for each row: kafka.send(topic, payload).get(timeout)
+                UPDATE outbox SET published_at = now() WHERE id = ?
+  Kafka 실패 → markPublished 안 함 → 다음 폴링에서 자동 재시도
+```
+
 1. `EventPublisher.publish()` 가 *같은 트랜잭션* 의 outbox 테이블에 INSERT — 도메인 변경과
-   이벤트 저장이 한 번에 commit/rollback.
+   이벤트 저장이 한 번에 commit/rollback. Kafka 호출은 트랜잭션 안에서 하지 않는다 (트랜잭션
+   안에서 외부 시스템 호출하면 commit 직전에 PG 가 다운되는 등의 race 가 위에서 말한 유실/유령
+   문제를 다시 만들어냄).
 2. 별도 `OutboxRelay` 가 `@Scheduled` 로 주기적 폴링하며 미발행 row 를 읽어 Kafka 로 동기
    전송 후 `Future.get(timeout)` (브로커 응답을 기다림). 성공한 row 만 `markPublished`
-   (별도 트랜잭션).
+   (별도 트랜잭션 — 다른 행 처리에 영향 안 가게 짧게 끊는다).
 3. Kafka 전송 실패 시 markPublished 를 안 하고, 다음 폴링에서 재시도.
 
 ## 장단점
