@@ -21,13 +21,13 @@ import java.util.TreeMap;
  */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class OrderBookQueryService implements OrderBookQueryUseCase {
 
     private final OrderBookQueryPort orderBook;
     private final Clock clock;
 
     @Override
-    @Transactional(readOnly = true)
     public OrderBookView view(SkuId skuId, int depth) {
         var now = clock.instant();
         List<Listing> asks = orderBook.topNAsks(skuId, depth, now);
