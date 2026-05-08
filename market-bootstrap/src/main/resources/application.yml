@@ -70,6 +70,10 @@ market:
     bucket: ${S3_BUCKET:resell-market-dev}
   cache:
     redis-enabled: false
+    invalidation-broadcast:
+      # cross-pod L1 evict broadcast (ADR-0022). dev 는 단일 인스턴스라 의미 없어 비활성.
+      enabled: false
+      channel: "market:cache:invalidate:market-stats:v1"
     market-stats:
       # 2단 캐시 — Caffeine L1 (in-process) + Redis L2 (분산). ADR-0019.
       l1-ttl-ms: 1000             # L1 짧게 — cross-pod 불일치 허용 시간이 곧 이 값
@@ -180,6 +184,8 @@ market:
     s3-enabled: true
   cache:
     redis-enabled: true
+    invalidation-broadcast:
+      enabled: true
   security:
     jwt:
       enabled: true

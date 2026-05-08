@@ -25,3 +25,4 @@
 | [0019](0019-multi-tier-cache-with-stampede-protection.md) | Multi-tier 캐시 (Caffeine L1 + Redis L2) + cache stampede 보호 | 적용 |
 | [0020](0020-token-bucket-rate-limiter.md) | Redis Lua 기반 token bucket rate limiter | 적용 |
 | [0021](0021-bulkhead-external-call-isolation.md) | 외부 호출 격리 — Resilience4j ThreadPoolBulkhead | 적용 |
+| [0022](0022-cache-invalidation-pubsub.md) | Cache invalidation 의 cross-pod broadcast (Redis pub/sub) | 적용 |

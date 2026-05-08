@@ -75,6 +75,17 @@ public class TwoTierMarketStatsCache implements MarketStatsCache {
     private final Duration lockTtl;
     private final Duration loaderRetryWait;
     private final int loaderRetryAttempts;
+    /**
+     * cross-pod L1 evict broadcaster (ADR-0022). null 이면 단일 인스턴스 (또는 broadcast 비활성)
+     * 모드 — L1 TTL 만으로 stale 시간 보장. setter 주입 — Configuration 의 후속 단계에서 wire
+     * (생성자 의존성으로 두면 broadcast 비활성 환경에서 빈 graph 가 깨짐).
+     */
+    private CacheInvalidationPublisher invalidationPublisher;
+
+    /** {@link CacheInvalidationConfiguration} 가 활성일 때만 호출됨. */
+    public void setInvalidationPublisher(CacheInvalidationPublisher publisher) {
+        this.invalidationPublisher = publisher;
+    }
 
     public TwoTierMarketStatsCache(
             StringRedisTemplate redis,
@@ -129,6 +140,24 @@ public class TwoTierMarketStatsCache implements MarketStatsCache {
         } catch (Exception e) {
             // Redis 가 죽어도 호출자는 영향받지 않게 — 다음 조회가 어차피 cold path.
             log.warn("Redis invalidate 실패 (무시) sku={} reason={}", key, e.getMessage());
+        }
+        broadcastInvalidate(key);
+    }
+
+    /**
+     * 외부 (다른 pod) 가 publish 한 invalidate 메시지를 받아 자기 L1 만 evict. L2 (Redis) 는 전 pod
+     * 가 공유하므로 한 pod 가 이미 갱신했고, 메시지의 의도는 *L1 캐시 일관성 유지* 다.
+     *
+     * <p>본 메서드는 {@link CacheInvalidationSubscriber} 의 {@code onInvalidate} 콜백으로 등록된다.</p>
+     */
+    public void evictL1Only(SkuId key) {
+        l1.invalidate(key);
+    }
+
+    /** broadcaster 가 등록된 경우 invalidate 메시지를 publish. 실패는 swallow (TTL 안전망). */
+    private void broadcastInvalidate(SkuId key) {
+        if (invalidationPublisher != null) {
+            invalidationPublisher.publish(key.value().toString());
         }
     }
 
@@ -221,6 +250,9 @@ public class TwoTierMarketStatsCache implements MarketStatsCache {
             log.warn("L2 쓰기 실패 (L1 만 사용) sku={} reason={}", key, e.getMessage());
         }
         l1.put(key, new CachedEntry(v, expiresAt, computeMs).withL1Expiry(computedAt.plus(l1Ttl)));
+        // 다른 pod 의 L1 stale 을 즉시 무효화 — 본 pod 는 이미 새 값을 가졌고, 다른 pod 는 메시지를
+        // 받아 자기 L1 만 evict 하면 다음 조회 시 L2 hit (== 본 pod 가 방금 쓴 값) 으로 즉시 일관성 회복.
+        broadcastInvalidate(key);
     }
 
     private static String cacheKey(SkuId key) {
