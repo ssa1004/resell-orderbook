@@ -48,8 +48,18 @@ public class JpaPriceTickRepositoryAdapter implements PriceTickRepository {
     }
 
     @Override
+    public List<PriceTick> findBySkuAfter(SkuId skuId, long afterId, int limit) {
+        return jpa.findBySkuIdAndIdGreaterThanOrderByIdAsc(
+                        skuId.value(), afterId, PageRequest.of(0, limit))
+                .stream()
+                .map(PriceTickJpaMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public Optional<PriceTick> findLatest(SkuId skuId) {
-        return jpa.findFirstBySkuIdOrderByOccurredAtDesc(skuId.value())
+        // Snowflake id DESC = 시간 DESC. occurred_at 컬럼 한 번 더 정렬할 필요 없음 (ADR-0018).
+        return jpa.findFirstBySkuIdOrderByIdDesc(skuId.value())
                 .map(PriceTickJpaMapper::toDomain);
     }
 
@@ -60,7 +70,7 @@ public class JpaPriceTickRepositoryAdapter implements PriceTickRepository {
             return new PriceAggregation(0L, null, null, null);
         }
         // 통화는 최근 tick 1건에서 가져옴. 통상 SKU 당 통화 고정.
-        Currency currency = jpa.findFirstBySkuIdOrderByOccurredAtDesc(skuId.value())
+        Currency currency = jpa.findFirstBySkuIdOrderByIdDesc(skuId.value())
                 .map(SkuLookup::currencyOf)
                 .orElse(DEFAULT_CURRENCY);
         BigDecimal avgBd = raw.avg() == null

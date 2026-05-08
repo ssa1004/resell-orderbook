@@ -14,6 +14,7 @@ import com.example.market.domain.catalog.SkuId;
 import com.example.market.domain.settlement.FeePolicy;
 import com.example.market.domain.shared.DomainEvent;
 import com.example.market.domain.shared.Money;
+import com.example.market.domain.shared.SnowflakeIdGenerator;
 import com.example.market.domain.shared.UserId;
 import com.example.market.domain.trading.Bid;
 import com.example.market.domain.trading.Listing;
@@ -64,6 +65,7 @@ class PlaceListingServiceTest {
     private IdempotencyKeyStore idempotency;
     private FeePolicyProvider feeProvider;
     private com.example.market.application.port.out.PriceTickRepository priceTicks;
+    private SnowflakeIdGenerator priceTickIds;
     private PlaceListingService service;
 
     @BeforeEach
@@ -76,11 +78,12 @@ class PlaceListingServiceTest {
         idempotency = mock(IdempotencyKeyStore.class);
         feeProvider = mock(FeePolicyProvider.class);
         priceTicks = mock(com.example.market.application.port.out.PriceTickRepository.class);
+        priceTickIds = new SnowflakeIdGenerator(0, CLOCK);
         when(feeProvider.current()).thenReturn(POLICY);
         // helper 는 실제 인스턴스 — 그 아래 store 를 mock 으로 두어 acquire 호출만 검증.
         IdempotentExecution idempotencyExecution = new IdempotentExecution(idempotency);
         service = new PlaceListingService(listings, bids, trades, orderBook,
-                events, idempotencyExecution, feeProvider, priceTicks, CLOCK);
+                events, idempotencyExecution, feeProvider, priceTicks, priceTickIds, CLOCK);
     }
 
     @Test

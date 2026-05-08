@@ -19,6 +19,16 @@ public interface PriceTickRepository {
     /** 차트 / chart 데이터 — 시간 역순. limit 으로 길이 제어. */
     List<PriceTick> findBySkuInRange(SkuId skuId, Instant from, Instant to, int limit);
 
+    /**
+     * Cursor pagination — {@code afterId} 보다 큰 snowflake id 의 tick 을 id 오름차순으로.
+     *
+     * <p>Snowflake id 가 시간 순으로 단조 증가하므로 (ADR-0018) "그 다음 페이지" 를 OFFSET 없이
+     * id 비교로 잡을 수 있다. 무한 스크롤 / 실시간 차트 follow-up 에 적합.</p>
+     *
+     * @param afterId 0 이면 처음부터
+     */
+    List<PriceTick> findBySkuAfter(SkuId skuId, long afterId, int limit);
+
     /** 가장 최근 체결 1건 — last trade 표시용. 없으면 empty. */
     Optional<PriceTick> findLatest(SkuId skuId);
 

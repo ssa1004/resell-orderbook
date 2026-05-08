@@ -70,6 +70,10 @@ market:
     bucket: ${S3_BUCKET:resell-market-dev}
   cache:
     redis-enabled: false
+  snowflake:
+    # Snowflake ID 생성기 machine-id (ADR-0018). 0~1023. 미설정 시 hostname hash 로 자동.
+    # 운영에서는 K8s StatefulSet ordinal 등으로 명시 권장.
+    # machine-id: 0
   security:
     jwt:
       enabled: false

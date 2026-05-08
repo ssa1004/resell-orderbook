@@ -23,8 +23,10 @@ class OhlcCandleTest {
 
     private static Money won(long n) { return Money.of(BigDecimal.valueOf(n), KRW); }
 
+    private static long nextSnowflakeId = 1L;
+
     private static PriceTick tick(long price, Instant at) {
-        return new PriceTick(UUID.randomUUID(), TradeId.of(UUID.randomUUID().toString()),
+        return new PriceTick(nextSnowflakeId++, TradeId.of(UUID.randomUUID().toString()),
                 SKU, won(price), at);
     }
 

@@ -1,0 +1,145 @@
+package com.example.market.domain.shared;
+
+import java.time.Clock;
+import java.time.Instant;
+
+/**
+ * 시간 순으로 정렬되는 64bit ID 생성기 (Twitter Snowflake 알고리즘).
+ *
+ * <p><b>비유</b>: 영수증 번호처럼 시간이 흐를수록 번호가 *항상 커진다*. UUID 는 무작위라
+ * "어느 게 더 최근인가" 를 ID 만 보고는 알 수 없는데, snowflake ID 는 ID 를 long 으로
+ * 비교만 해도 시간 순서가 나온다 — 차트 / 시계열 시스템에서 인덱스 정렬·페이지네이션 비용을
+ * 크게 줄여주는 이유.</p>
+ *
+ * <p><b>비트 배치 (총 64bit, signed long 의 부호 비트는 0 으로 고정)</b>:</p>
+ * <pre>
+ *   |  1 bit  |   41 bit   |    10 bit    |   12 bit   |
+ *   | 부호=0  | timestamp  | machine id   | sequence   |
+ * </pre>
+ * <ul>
+ *   <li>timestamp = (현재 ms - epoch ms). 41bit → ~69년 표현 가능</li>
+ *   <li>machine id = 인스턴스(=pod)별 고유 번호. 10bit → 최대 1024 인스턴스</li>
+ *   <li>sequence = 같은 ms 안에서 1씩 증가. 12bit → 1ms 당 4096개 ID</li>
+ * </ul>
+ *
+ * <p><b>왜 UUID 가 아니라 snowflake?</b></p>
+ * <ul>
+ *   <li>UUID 는 무작위 → 인덱스 page 가 무작위로 부풀어 (write amplification) DB 캐시 효율 떨어짐</li>
+ *   <li>UUID 는 정렬해도 시간 순이 아니라 "WHERE id &gt; cursor LIMIT N" 식의 cursor pagination 불가</li>
+ *   <li>16 byte vs 8 byte — 인덱스 절반 크기로 같은 메모리에 2배 들어감</li>
+ * </ul>
+ *
+ * <p><b>Clock backward 방어</b>: 시계가 뒤로 가면 (NTP 동기화 등) 같은 ID 가 두 번 나올 수 있어
+ * 마지막으로 사용한 timestamp 보다 작은 시각이 들어오면 "마지막 timestamp" 그대로 두고 sequence 만
+ * 증가시킨다. 단, sequence 가 한도(=4096) 를 넘으면 다음 ms 까지 spin-wait. 시계가 한참 뒤로
+ * 갔다면 (예: 분 단위) 그건 인프라 문제이므로 예외를 던진다 — silent corruption 보단 빠른 실패.</p>
+ *
+ * <p><b>Thread-safe</b>: 모든 상태를 {@code synchronized} 블록 안에서 갱신. nextId() 호출은 ns
+ * 단위라 락 경합이 사실상 없다 (1ms 당 4096개를 한 thread 가 다 못 채움).</p>
+ *
+ * <p>의존성 0 — 순수 도메인. Spring 으로 Bean 등록은 application 모듈 책임.</p>
+ */
+public final class SnowflakeIdGenerator {
+
+    /** 2026-01-01T00:00:00Z. 41bit timestamp 의 0 점 — 이후 ~69년 표현 가능 (~ 2095년). */
+    public static final long EPOCH_MS = 1_767_225_600_000L;
+
+    private static final int MACHINE_BITS = 10;
+    private static final int SEQUENCE_BITS = 12;
+
+    public static final int MAX_MACHINE_ID = (1 << MACHINE_BITS) - 1;       // 1023
+    private static final int SEQUENCE_MASK = (1 << SEQUENCE_BITS) - 1;       // 4095
+
+    private static final int MACHINE_SHIFT = SEQUENCE_BITS;                  // 12
+    private static final int TIMESTAMP_SHIFT = SEQUENCE_BITS + MACHINE_BITS; // 22
+
+    /** 시계가 이 이상 뒤로 가면 silent corruption 위험이 더 크므로 예외. (10s) */
+    private static final long CLOCK_BACKWARD_TOLERANCE_MS = 10_000L;
+
+    private final long machineId;
+    private final Clock clock;
+
+    private long lastTimestamp = -1L;
+    private long sequence = 0L;
+
+    public SnowflakeIdGenerator(long machineId, Clock clock) {
+        if (machineId < 0 || machineId > MAX_MACHINE_ID) {
+            throw new IllegalArgumentException(
+                    "machineId 는 0 ~ " + MAX_MACHINE_ID + " 범위. 받은 값: " + machineId);
+        }
+        if (clock == null) {
+            throw new IllegalArgumentException("clock must not be null");
+        }
+        this.machineId = machineId;
+        this.clock = clock;
+    }
+
+    /**
+     * 다음 ID 생성. 같은 ms 안에서는 sequence 가 증가 → 항상 lastId &lt; nextId.
+     *
+     * @throws IllegalStateException 시계가 허용 한도 이상 뒤로 갔을 때
+     */
+    public synchronized long nextId() {
+        long now = clock.millis();
+
+        if (now < lastTimestamp) {
+            // 시계 역행 — 작은 차이 (NTP 보정) 라면 lastTimestamp 그대로 쓴다.
+            // sequence 는 그대로 증가하므로 ID 단조 증가는 유지.
+            long drift = lastTimestamp - now;
+            if (drift > CLOCK_BACKWARD_TOLERANCE_MS) {
+                throw new IllegalStateException(
+                        "Clock 이 " + drift + "ms 뒤로 갔습니다 — Snowflake 단조 증가 보장 불가. "
+                                + "tolerance=" + CLOCK_BACKWARD_TOLERANCE_MS + "ms");
+            }
+            now = lastTimestamp;
+        }
+
+        if (now == lastTimestamp) {
+            sequence = (sequence + 1) & SEQUENCE_MASK;
+            if (sequence == 0) {
+                // 1ms 안에 4096개를 다 썼다 — 다음 ms 까지 대기.
+                now = waitNextMillis(lastTimestamp);
+            }
+        } else {
+            sequence = 0L;
+        }
+        lastTimestamp = now;
+
+        long elapsed = now - EPOCH_MS;
+        if (elapsed < 0) {
+            throw new IllegalStateException("현재 시각이 EPOCH_MS 이전입니다. now=" + now);
+        }
+        return (elapsed << TIMESTAMP_SHIFT)
+                | (machineId << MACHINE_SHIFT)
+                | sequence;
+    }
+
+    private long waitNextMillis(long currentLast) {
+        long t = clock.millis();
+        while (t <= currentLast) {
+            // busy-wait: 한 ms 도 안 되는 대기라 Thread.sleep 보다 정확.
+            t = clock.millis();
+        }
+        return t;
+    }
+
+    /** 디코딩 — 모니터링 / 로그 분석용. */
+    public static Instant timestampOf(long id) {
+        long elapsed = id >>> TIMESTAMP_SHIFT;
+        return Instant.ofEpochMilli(EPOCH_MS + elapsed);
+    }
+
+    /** 디코딩 — 어떤 인스턴스가 발급했는지. */
+    public static long machineIdOf(long id) {
+        return (id >>> MACHINE_SHIFT) & MAX_MACHINE_ID;
+    }
+
+    /** 디코딩 — 같은 ms 안의 몇 번째 ID 인지. */
+    public static long sequenceOf(long id) {
+        return id & SEQUENCE_MASK;
+    }
+
+    public long machineId() {
+        return machineId;
+    }
+}

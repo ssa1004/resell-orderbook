@@ -9,6 +9,7 @@ import com.example.market.application.port.out.OrderBookQueryPort;
 import com.example.market.application.port.out.PriceTickRepository;
 import com.example.market.application.port.out.TradeRepository;
 import com.example.market.domain.marketdata.PriceTick;
+import com.example.market.domain.shared.SnowflakeIdGenerator;
 import com.example.market.domain.trading.Listing;
 import com.example.market.domain.trading.MatchEngine;
 import com.example.market.domain.trading.Trade;
@@ -37,6 +38,7 @@ public class BuyNowService implements BuyNowUseCase {
     private final IdempotentExecution idempotency;
     private final FeePolicyProvider feePolicyProvider;
     private final PriceTickRepository priceTicks;
+    private final SnowflakeIdGenerator priceTickIds;
     private final Clock clock;
 
     @Override
@@ -56,7 +58,7 @@ public class BuyNowService implements BuyNowUseCase {
         trades.save(trade);
         events.publish(trade.matched(now));
         // 시세 틱 — 같은 트랜잭션
-        priceTicks.save(PriceTick.from(trade.id(), trade.skuId(), trade.price(), now));
+        priceTicks.save(PriceTick.from(priceTickIds, trade.id(), trade.skuId(), trade.price(), now));
         log.info("buyNow matched trade={} buyer={} ask={} price={}",
                 trade.id(), cmd.buyerId(), ask.id(), trade.price());
         return trade;

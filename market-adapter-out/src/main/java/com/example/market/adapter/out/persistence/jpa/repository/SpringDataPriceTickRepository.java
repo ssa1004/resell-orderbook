@@ -12,14 +12,21 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface SpringDataPriceTickRepository extends JpaRepository<PriceTickJpaEntity, UUID> {
+public interface SpringDataPriceTickRepository extends JpaRepository<PriceTickJpaEntity, Long> {
 
     /** 차트 / 최근 체결가 조회 — 시간 역순 (최근부터). */
     List<PriceTickJpaEntity> findBySkuIdAndOccurredAtBetweenOrderByOccurredAtDesc(
             UUID skuId, Instant from, Instant to, Pageable pageable);
 
-    /** 가장 최근 체결 1건 — last trade 표시용. */
-    Optional<PriceTickJpaEntity> findFirstBySkuIdOrderByOccurredAtDesc(UUID skuId);
+    /** 가장 최근 체결 1건 — last trade 표시용. Snowflake id DESC = 시간 DESC (ADR-0018). */
+    Optional<PriceTickJpaEntity> findFirstBySkuIdOrderByIdDesc(UUID skuId);
+
+    /**
+     * Cursor pagination — id &gt; afterId 인 tick 을 id ASC 로. snowflake id 가 시간 순이므로
+     * 별도 occurred_at 정렬 / OFFSET 없이 다음 페이지를 잡는다.
+     */
+    List<PriceTickJpaEntity> findBySkuIdAndIdGreaterThanOrderByIdAsc(
+            UUID skuId, Long afterId, Pageable pageable);
 
     /**
      * 24h 통계 — DB aggregation 으로 한번에 계산. tick 수가 많아도 효율적.

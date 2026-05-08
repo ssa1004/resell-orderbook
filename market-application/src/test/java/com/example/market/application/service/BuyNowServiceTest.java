@@ -10,6 +10,7 @@ import com.example.market.application.port.out.TradeRepository;
 import com.example.market.domain.catalog.SkuId;
 import com.example.market.domain.settlement.FeePolicy;
 import com.example.market.domain.shared.Money;
+import com.example.market.domain.shared.SnowflakeIdGenerator;
 import com.example.market.domain.shared.UserId;
 import com.example.market.domain.trading.Listing;
 import com.example.market.domain.trading.ListingStatus;
@@ -61,10 +62,11 @@ class BuyNowServiceTest {
         idempotency = mock(IdempotencyKeyStore.class);
         feeProvider = mock(FeePolicyProvider.class);
         priceTicks = mock(com.example.market.application.port.out.PriceTickRepository.class);
+        SnowflakeIdGenerator priceTickIds = new SnowflakeIdGenerator(0, Clock.fixed(NOW, ZoneOffset.UTC));
         when(feeProvider.current()).thenReturn(POLICY);
         service = new BuyNowService(listings, trades, orderBook, events,
                 new IdempotentExecution(idempotency), feeProvider,
-                priceTicks, Clock.fixed(NOW, ZoneOffset.UTC));
+                priceTicks, priceTickIds, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test

@@ -11,6 +11,7 @@ import com.example.market.application.port.out.PriceTickRepository;
 import com.example.market.application.port.out.TradeRepository;
 import com.example.market.domain.marketdata.PriceTick;
 import com.example.market.domain.settlement.FeePolicy;
+import com.example.market.domain.shared.SnowflakeIdGenerator;
 import com.example.market.domain.trading.Bid;
 import com.example.market.domain.trading.Listing;
 import com.example.market.domain.trading.MatchEngine;
@@ -38,6 +39,7 @@ public class PlaceBidService implements PlaceBidUseCase {
     private final IdempotentExecution idempotency;
     private final FeePolicyProvider feePolicyProvider;
     private final PriceTickRepository priceTicks;
+    private final SnowflakeIdGenerator priceTickIds;
     private final Clock clock;
 
     @Override
@@ -65,7 +67,7 @@ public class PlaceBidService implements PlaceBidUseCase {
             trades.save(t);
             events.publish(t.matched(now));
             // 시세 틱 기록 (같은 트랜잭션 — 매칭과 원자적)
-            priceTicks.save(PriceTick.from(t.id(), t.skuId(), t.price(), now));
+            priceTicks.save(PriceTick.from(priceTickIds, t.id(), t.skuId(), t.price(), now));
             log.info("bid matched id={} trade={} price={} sku={}",
                     bid.id(), t.id(), t.price(), cmd.skuId());
             return new PlaceBidResult(bid.id(), Optional.of(t.id()));

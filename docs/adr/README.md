@@ -21,3 +21,4 @@
 | [0015](0015-market-data-time-series.md) | Market Data — 시세 시계열 + 통계 read API | 적용 |
 | [0016](0016-ohlc-candlestick-aggregation.md) | OHLC 캔들스틱 사전 집계 (Market Data 후속) | 적용 |
 | [0017](0017-inspection-slot-management.md) | Inspection Slot Management — capacity 기반 검수 예약 | 적용 |
+| [0018](0018-snowflake-id-for-pricetick.md) | Snowflake ID — PriceTick 의 시간 정렬 가능한 64bit 식별자 | 적용 |

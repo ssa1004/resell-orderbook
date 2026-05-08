@@ -11,6 +11,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * price_ticks row. PK 는 Snowflake 64bit long (ADR-0018) — 시간 순 정렬 가능.
+ */
 @Entity
 @Table(name = "price_ticks")
 @Getter
@@ -21,7 +24,7 @@ public class PriceTickJpaEntity {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
-    private UUID id;
+    private Long id;
 
     @Column(name = "trade_id", nullable = false, unique = true)
     private UUID tradeId;
