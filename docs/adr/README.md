@@ -22,3 +22,4 @@
 | [0016](0016-ohlc-candlestick-aggregation.md) | OHLC 캔들스틱 사전 집계 (Market Data 후속) | 적용 |
 | [0017](0017-inspection-slot-management.md) | Inspection Slot Management — capacity 기반 검수 예약 | 적용 |
 | [0018](0018-snowflake-id-for-pricetick.md) | Snowflake ID — PriceTick 의 시간 정렬 가능한 64bit 식별자 | 적용 |
+| [0019](0019-multi-tier-cache-with-stampede-protection.md) | Multi-tier 캐시 (Caffeine L1 + Redis L2) + cache stampede 보호 | 적용 |

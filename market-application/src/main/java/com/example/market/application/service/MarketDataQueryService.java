@@ -2,6 +2,7 @@ package com.example.market.application.service;
 
 import com.example.market.application.port.in.MarketDataQueryUseCase;
 import com.example.market.application.port.in.OrderBookQueryUseCase;
+import com.example.market.application.port.out.MarketStatsCache;
 import com.example.market.application.port.out.OhlcCandleRepository;
 import com.example.market.application.port.out.PriceTickRepository;
 import com.example.market.domain.catalog.SkuId;
@@ -27,7 +28,10 @@ import java.util.Optional;
  * 와 가장 최근 체결가 + 24h 집계를 한 번의 응답으로 묶어 클라이언트가 추가 round-trip 없이
  * 받을 수 있게.</p>
  *
- * <p>트래픽 늘면 통계는 1분 단위 캐시 / 별도 read replica 로 분리 가능 — 인터페이스가 그 경계.</p>
+ * <p>hot SKU 의 반복 조회는 {@link MarketStatsCache} (Caffeine L1 + Redis L2, ADR-0019) 가
+ * 흡수 — 매번 DB 의 24h aggregation (COUNT/MIN/AVG/MAX) 을 돌리지 않는다. cache miss 시에만
+ * loader 가 실제 DB 쿼리를 수행하고, 그 결과는 1초 (L1) / 10초 (L2) TTL 로 보관. cache stampede
+ * 는 probabilistic early refresh + SETNX lock 으로 차단.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -39,10 +43,16 @@ public class MarketDataQueryService implements MarketDataQueryUseCase {
     private final PriceTickRepository ticks;
     private final OhlcCandleRepository candles;
     private final OrderBookQueryUseCase orderBookQuery;
+    private final MarketStatsCache statsCache;
     private final Clock clock;
 
     @Override
     public MarketStats currentStats(SkuId skuId) {
+        // cache miss 또는 stale 임박 시에만 computeStats() 가 호출됨. cache hit 은 ns~ms 단위.
+        return statsCache.getOrCompute(skuId, () -> computeStats(skuId));
+    }
+
+    private MarketStats computeStats(SkuId skuId) {
         Instant now = clock.instant();
         Instant from24h = now.minus(WINDOW_24H);
 

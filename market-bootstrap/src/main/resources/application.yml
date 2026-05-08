@@ -70,6 +70,14 @@ market:
     bucket: ${S3_BUCKET:resell-market-dev}
   cache:
     redis-enabled: false
+    market-stats:
+      # 2단 캐시 — Caffeine L1 (in-process) + Redis L2 (분산). ADR-0019.
+      l1-ttl-ms: 1000             # L1 짧게 — cross-pod 불일치 허용 시간이 곧 이 값
+      l2-ttl-ms: 10000            # L2 길게 — DB 쿼리 부담을 ~10초 단위로 묶음
+      l1-max-size: 10000          # in-process 메모리 보호. 인기 SKU 수 대비 충분
+      lock-ttl-ms: 5000           # SETNX stampede lock TTL — loader p99 + 여유
+      loader-retry-wait-ms: 50    # lock holder 가 채워주기를 기다리는 폴링 간격
+      loader-retry-attempts: 3    # 폴링 횟수 — 이 후엔 fallback 으로 직접 loader 호출
   snowflake:
     # Snowflake ID 생성기 machine-id (ADR-0018). 0~1023. 미설정 시 hostname hash 로 자동.
     # 운영에서는 K8s StatefulSet ordinal 등으로 명시 권장.

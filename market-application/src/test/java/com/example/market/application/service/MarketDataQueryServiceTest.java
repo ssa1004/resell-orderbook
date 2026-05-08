@@ -46,7 +46,20 @@ class MarketDataQueryServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MarketDataQueryService(ticks, candles, orderBookQuery, CLOCK);
+        // 테스트는 cache 동작이 아닌 실제 통계 계산을 검증하므로 loader 를 항상 그대로 호출하는
+        // pass-through 캐시 사용. cache 자체의 거동은 별도 테스트에서.
+        com.example.market.application.port.out.MarketStatsCache passThrough =
+                new com.example.market.application.port.out.MarketStatsCache() {
+                    @Override
+                    public com.example.market.domain.marketdata.MarketStats getOrCompute(
+                            SkuId key,
+                            java.util.function.Supplier<com.example.market.domain.marketdata.MarketStats> loader) {
+                        return loader.get();
+                    }
+                    @Override
+                    public void invalidate(SkuId key) { /* no-op */ }
+                };
+        service = new MarketDataQueryService(ticks, candles, orderBookQuery, passThrough, CLOCK);
     }
 
     private static Money won(long n) {
@@ -82,7 +95,7 @@ class MarketDataQueryServiceTest {
     @Test
     void withTrades_includesLastAnd24hStats() {
         TradeId tradeId = TradeId.of(UUID.randomUUID().toString());
-        PriceTick last = new PriceTick(UUID.randomUUID(), tradeId, SKU, won(180_000),
+        PriceTick last = new PriceTick(42L, tradeId, SKU, won(180_000),
                 NOW.minus(Duration.ofMinutes(10)));
         when(ticks.findLatest(SKU)).thenReturn(Optional.of(last));
         when(orderBookQuery.view(eq(SKU), any(int.class)))
