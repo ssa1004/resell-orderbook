@@ -5,7 +5,6 @@ import com.example.market.application.port.in.SellNowUseCase;
 import com.example.market.application.port.out.BidRepository;
 import com.example.market.application.port.out.EventPublisher;
 import com.example.market.application.port.out.FeePolicyProvider;
-import com.example.market.application.port.out.IdempotencyKeyStore;
 import com.example.market.application.port.out.OrderBookQueryPort;
 import com.example.market.application.port.out.PriceTickRepository;
 import com.example.market.application.port.out.TradeRepository;
@@ -31,7 +30,7 @@ public class SellNowService implements SellNowUseCase {
     private final TradeRepository trades;
     private final OrderBookQueryPort orderBook;
     private final EventPublisher events;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final FeePolicyProvider feePolicyProvider;
     private final PriceTickRepository priceTicks;
     private final Clock clock;
@@ -39,7 +38,7 @@ public class SellNowService implements SellNowUseCase {
     @Override
     @Transactional
     public Trade sellNow(SellNowCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
         Instant now = clock.instant();
 
         orderBook.acquireSkuLock(cmd.skuId());

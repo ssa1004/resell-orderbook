@@ -3,7 +3,6 @@ package com.example.market.application.service;
 import com.example.market.application.command.BookAppointmentCommand;
 import com.example.market.application.exception.InspectionExceptions;
 import com.example.market.application.port.in.BookAppointmentUseCase;
-import com.example.market.application.port.out.IdempotencyKeyStore;
 import com.example.market.application.port.out.InspectionAppointmentRepository;
 import com.example.market.application.port.out.InspectionCenterRepository;
 import com.example.market.application.port.out.InspectionSlotLockPort;
@@ -51,13 +50,13 @@ public class BookAppointmentService implements BookAppointmentUseCase {
     private final InspectionCenterRepository centers;
     private final InspectionAppointmentRepository appointments;
     private final InspectionSlotLockPort slotLock;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final Clock clock;
 
     @Override
     @Transactional
     public InspectionAppointment book(BookAppointmentCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
 
         InspectionCenterId centerId = new InspectionCenterId(cmd.centerId());
         TradeId tradeId = TradeId.of(cmd.tradeId().toString());

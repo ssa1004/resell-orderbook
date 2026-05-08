@@ -5,7 +5,6 @@ import com.example.market.application.port.in.PlaceBidUseCase;
 import com.example.market.application.port.out.BidRepository;
 import com.example.market.application.port.out.EventPublisher;
 import com.example.market.application.port.out.FeePolicyProvider;
-import com.example.market.application.port.out.IdempotencyKeyStore;
 import com.example.market.application.port.out.ListingRepository;
 import com.example.market.application.port.out.OrderBookQueryPort;
 import com.example.market.application.port.out.PriceTickRepository;
@@ -36,7 +35,7 @@ public class PlaceBidService implements PlaceBidUseCase {
     private final TradeRepository trades;
     private final OrderBookQueryPort orderBook;
     private final EventPublisher events;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final FeePolicyProvider feePolicyProvider;
     private final PriceTickRepository priceTicks;
     private final Clock clock;
@@ -44,7 +43,7 @@ public class PlaceBidService implements PlaceBidUseCase {
     @Override
     @Transactional
     public PlaceBidResult place(PlaceBidCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
         Instant now = clock.instant();
 
         orderBook.acquireSkuLock(cmd.skuId());

@@ -62,7 +62,8 @@ class BuyNowServiceTest {
         feeProvider = mock(FeePolicyProvider.class);
         priceTicks = mock(com.example.market.application.port.out.PriceTickRepository.class);
         when(feeProvider.current()).thenReturn(POLICY);
-        service = new BuyNowService(listings, trades, orderBook, events, idempotency, feeProvider,
+        service = new BuyNowService(listings, trades, orderBook, events,
+                new IdempotentExecution(idempotency), feeProvider,
                 priceTicks, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

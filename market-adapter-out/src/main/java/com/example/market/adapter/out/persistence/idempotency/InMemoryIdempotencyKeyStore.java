@@ -56,6 +56,12 @@ public class InMemoryIdempotencyKeyStore implements IdempotencyKeyStore {
         }
     }
 
+    /** 점유 해제 — 트랜잭션 rollback 시 호출. 키가 없으면 no-op. */
+    @Override
+    public void release(String key) {
+        seen.remove(key);
+    }
+
     private void sweepExpired(Instant now) {
         Iterator<Map.Entry<String, Instant>> it = seen.entrySet().iterator();
         while (it.hasNext()) {

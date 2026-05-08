@@ -34,4 +34,10 @@ public class RedisIdempotencyKeyStore implements IdempotencyKeyStore {
             throw new DuplicateRequestException(key);
         }
     }
+
+    /** 점유 해제 — 트랜잭션 rollback 시 호출. DEL 은 키가 없어도 0 반환 (멱등). */
+    @Override
+    public void release(String key) {
+        redis.delete(PREFIX + key);
+    }
 }

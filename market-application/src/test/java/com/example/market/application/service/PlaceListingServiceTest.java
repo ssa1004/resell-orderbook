@@ -77,8 +77,10 @@ class PlaceListingServiceTest {
         feeProvider = mock(FeePolicyProvider.class);
         priceTicks = mock(com.example.market.application.port.out.PriceTickRepository.class);
         when(feeProvider.current()).thenReturn(POLICY);
+        // helper 는 실제 인스턴스 — 그 아래 store 를 mock 으로 두어 acquire 호출만 검증.
+        IdempotentExecution idempotencyExecution = new IdempotentExecution(idempotency);
         service = new PlaceListingService(listings, bids, trades, orderBook,
-                events, idempotency, feeProvider, priceTicks, CLOCK);
+                events, idempotencyExecution, feeProvider, priceTicks, CLOCK);
     }
 
     @Test

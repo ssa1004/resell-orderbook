@@ -47,7 +47,8 @@ class BookAppointmentServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new BookAppointmentService(centers, appointments, slotLock, idempotencyKeys, CLOCK);
+        service = new BookAppointmentService(centers, appointments, slotLock,
+                new IdempotentExecution(idempotencyKeys), CLOCK);
     }
 
     private static InspectionCenter aCenter(int capacity) {

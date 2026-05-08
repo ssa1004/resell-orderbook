@@ -5,7 +5,6 @@ import com.example.market.application.port.in.PlaceListingUseCase;
 import com.example.market.application.port.out.BidRepository;
 import com.example.market.application.port.out.EventPublisher;
 import com.example.market.application.port.out.FeePolicyProvider;
-import com.example.market.application.port.out.IdempotencyKeyStore;
 import com.example.market.application.port.out.ListingRepository;
 import com.example.market.application.port.out.OrderBookQueryPort;
 import com.example.market.application.port.out.PriceTickRepository;
@@ -55,7 +54,7 @@ public class PlaceListingService implements PlaceListingUseCase {
     private final TradeRepository trades;
     private final OrderBookQueryPort orderBook;
     private final EventPublisher events;
-    private final IdempotencyKeyStore idempotencyKeys;
+    private final IdempotentExecution idempotency;
     private final FeePolicyProvider feePolicyProvider;
     private final PriceTickRepository priceTicks;
     private final Clock clock;
@@ -63,7 +62,7 @@ public class PlaceListingService implements PlaceListingUseCase {
     @Override
     @Transactional
     public PlaceListingResult place(PlaceListingCommand cmd) {
-        idempotencyKeys.acquireOrThrow(cmd.idempotencyKey());
+        idempotency.acquireAndReleaseOnRollback(cmd.idempotencyKey());
         Instant now = clock.instant();
 
         // SKU 단위로 매칭을 한 줄로 줄세움 — pg_advisory_xact_lock(hash(sku_id))
