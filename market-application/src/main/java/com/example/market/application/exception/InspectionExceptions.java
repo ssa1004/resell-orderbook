@@ -15,12 +15,14 @@ public final class InspectionExceptions {
     private InspectionExceptions() {}
 
     public static class CenterNotFoundException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         public CenterNotFoundException(InspectionCenterId id) {
             super("inspection center not found: " + id);
         }
     }
 
     public static class AppointmentNotFoundException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         public AppointmentNotFoundException(AppointmentId id) {
             super("inspection appointment not found: " + id);
         }
@@ -31,6 +33,7 @@ public final class InspectionExceptions {
      * 권한이 없을 때. Adapter-in 이 HTTP 403 으로 매핑.
      */
     public static class UnauthorizedAppointmentOperationException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         public UnauthorizedAppointmentOperationException(AppointmentId appointmentId,
                                                           UserId requestor, String op) {
             super("appointment " + appointmentId + " — requestor " + requestor
@@ -40,6 +43,7 @@ public final class InspectionExceptions {
 
     /** 슬롯 capacity 초과 — 다른 사용자가 먼저 예약. */
     public static class SlotFullException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         public SlotFullException(InspectionCenterId centerId, Instant slotStart,
                                   long capacity) {
             super("slot full: center=" + centerId + " slot=" + slotStart + " capacity=" + capacity);
@@ -48,6 +52,7 @@ public final class InspectionExceptions {
 
     /** 예약 마감 시간 (lead time) 안 — 너무 임박해 예약 불가. */
     public static class TooLateToBookException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         public TooLateToBookException(InspectionCenterId centerId, Instant slotStart) {
             super("too late to book: center=" + centerId + " slot=" + slotStart);
         }
@@ -55,6 +60,7 @@ public final class InspectionExceptions {
 
     /** 한 trade 가 이미 active 예약을 가지고 있음 — 중복 예약 방지. */
     public static class AlreadyBookedException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
         public AlreadyBookedException(TradeId tradeId, AppointmentId existing) {
             super("trade already has active appointment: trade=" + tradeId + " existing=" + existing);
         }
