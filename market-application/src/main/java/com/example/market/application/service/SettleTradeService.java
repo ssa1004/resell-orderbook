@@ -61,7 +61,8 @@ public class SettleTradeService implements SettleTradeUseCase {
             payouts.save(payout);
             events.publish(ev);
             log.info("payout sent trade={} payout={} amount={}",
-                    trade.id(), payout.id(), payout.netAmount());
+                    trade.id(), payout.id(),
+                    SensitiveLogging.maskAmount(payout.netAmount().amount()));
         } else {
             var failEv = payout.fail(sendResult.errorMessage(), now);
             payouts.save(payout);
