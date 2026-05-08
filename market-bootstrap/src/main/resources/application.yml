@@ -15,6 +15,17 @@ spring:
     username: sa
     password:
     driver-class-name: org.h2.Driver
+    # HikariCP 튜닝 (ADR-0024). dev 는 H2 라 풀 크기를 작게, leak detection 만 켜서 코드 변경
+    # 시점에 connection 누수가 나면 즉시 stack trace 가 찍히도록.
+    hikari:
+      pool-name: market-hikari-dev
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 3000      # 풀에서 connection 못 받으면 3초 만에 fail
+      validation-timeout: 1000
+      idle-timeout: 600000          # 유휴 10분 후 회수
+      max-lifetime: 1800000         # 30분 — DB 측 wait_timeout 보다 짧게
+      leak-detection-threshold: 30000   # 30초 보유 시 stack trace 로그 (개발 중 누수 즉시 식별)
   jpa:
     hibernate:
       ddl-auto: validate
@@ -163,6 +174,36 @@ spring:
     username: ${DB_USER:market}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    # HikariCP 운영 튜닝 (ADR-0024).
+    #
+    # ── pool size 산정 ──
+    # 동시 처리 ≈ 도착률(req/s) × 평균 트랜잭션 시간(s).
+    # peak 60 req/s × 평균 100ms ≈ 6 connection. 매칭 worker / batch / outbox relay 에 +6,
+    # burst 흡수용 여유 +10 → 22. 짝수 정리해서 24.
+    # 위쪽 안전판 — DB 의 max_connections (예: 200) ÷ 운영 pod 수 (예: 8) = pod 당 25.
+    # 24 ≤ 25 라 DB 측 한계도 안 넘는다.
+    #
+    # ── 무조건 크면 좋다? 아님 ──
+    # connection 이 많으면 DB 측 lock contention / context switch 비용이 커진다 (Brett Wooldridge
+    # 의 "About Pool Sizing" 가이드 — 코어 수 × 2 + 디스크 spindle 가 권장 상한). 짧은 트랜잭션
+    # 다수가 적은 connection 을 빠르게 돌려쓰는 편이 처리량이 더 높다.
+    #
+    # ── leak-detection-threshold ──
+    # connection 을 30초 넘게 보유 중이면 그 시점에 stack trace 를 WARN 로그로 — 풀 누수가
+    # 즉시 잡혀 디버깅 시간 단축. 정상 트랜잭션이 30초 넘는 일은 본 도메인엔 없으므로 false
+    # positive 위험 없음.
+    hikari:
+      pool-name: market-hikari
+      maximum-pool-size: ${HIKARI_MAX_POOL:24}
+      minimum-idle: ${HIKARI_MIN_IDLE:8}
+      connection-timeout: 3000          # 풀에서 connection 받지 못하면 3초 만에 fail (서킷처럼 동작)
+      validation-timeout: 1000          # 풀이 connection 살아있는지 검증하는 데 쓸 시간
+      idle-timeout: 600000              # 유휴 10분 — 새벽 시간 풀 minimum-idle 까지 자연 축소
+      max-lifetime: 1800000             # 30분 — Postgres idle_in_transaction_session_timeout / 클라우드 LB stickiness 보다 짧게
+      keepalive-time: 300000            # 5분마다 live ping — 방화벽/NAT 유휴 끊김 방지
+      leak-detection-threshold: 30000   # 30초 보유 = 누수 의심 → stack trace WARN
+      # register-mbeans true — JMX 로 풀 상태 직접 조회 (Micrometer hikaricp.* 메트릭과 별개)
+      register-mbeans: true
   data:
     redis:
       host: ${REDIS_HOST:redis}
