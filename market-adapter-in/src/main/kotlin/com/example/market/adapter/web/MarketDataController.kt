@@ -10,7 +10,10 @@ import com.example.market.domain.catalog.SkuId
 import com.example.market.domain.marketdata.OhlcPeriod
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import org.springframework.http.ResponseEntity
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
@@ -27,6 +30,7 @@ import java.time.Instant
 @RestController
 @RequestMapping("/api/v1/market")
 @Tag(name = "market-data", description = "시세 카드 / 가격 차트 raw 데이터")
+@Validated
 class MarketDataController(
     private val marketData: MarketDataQueryUseCase,
 ) {
@@ -61,7 +65,7 @@ class MarketDataController(
         @PathVariable skuId: String,
         @RequestParam from: String,         // ISO-8601
         @RequestParam to: String,           // ISO-8601
-        @RequestParam(defaultValue = "1000") limit: Int,
+        @RequestParam(defaultValue = "1000") @Min(1) @Max(10_000) limit: Int,
     ): ResponseEntity<PriceTicksResponse> {
         val fromInstant = Instant.parse(from)
         val toInstant = Instant.parse(to)
@@ -86,7 +90,7 @@ class MarketDataController(
         @RequestParam period: String,       // ONE_MIN / FIVE_MIN / ONE_HOUR / ONE_DAY
         @RequestParam from: String,
         @RequestParam to: String,
-        @RequestParam(defaultValue = "1000") limit: Int,
+        @RequestParam(defaultValue = "1000") @Min(1) @Max(10_000) limit: Int,
     ): ResponseEntity<OhlcCandlesResponse> {
         val periodEnum = OhlcPeriod.valueOf(period)
         val fromInstant = Instant.parse(from)

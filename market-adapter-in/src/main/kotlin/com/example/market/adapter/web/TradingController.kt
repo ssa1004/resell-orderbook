@@ -25,9 +25,12 @@ import com.example.market.domain.trading.ListingId
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -42,6 +45,7 @@ import java.net.URI
 @RestController
 @RequestMapping("/api/v1")
 @Tag(name = "trading", description = "Listing/Bid/Trade 매칭")
+@Validated
 class TradingController(
     private val placeListing: PlaceListingUseCase,
     private val placeBid: PlaceBidUseCase,
@@ -145,7 +149,7 @@ class TradingController(
     @Operation(summary = "호가창 조회 (Top N ASK + BID)")
     fun orderBook(
         @PathVariable skuId: String,
-        @RequestParam(defaultValue = "10") depth: Int,
+        @RequestParam(defaultValue = "10") @Min(1) @Max(100) depth: Int,
     ): OrderBookView {
         val view = orderBookQuery.view(SkuId.of(skuId), depth)
         return OrderBookView.from(view)

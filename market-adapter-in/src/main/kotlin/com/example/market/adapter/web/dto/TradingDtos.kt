@@ -9,8 +9,10 @@ import com.example.market.domain.catalog.SkuId
 import com.example.market.domain.shared.Money
 import com.example.market.domain.shared.UserId
 import com.example.market.domain.trading.Trade
+import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.Currency
@@ -19,8 +21,8 @@ import java.util.Currency
 
 data class PlaceListingRequest(
     @field:NotBlank val skuId: String,
-    @field:Positive val price: Long,
-    @field:NotBlank val currency: String = "KRW",
+    @field:Positive @field:Max(10_000_000_000L) val price: Long,
+    @field:NotBlank @field:Size(min = 3, max = 3) val currency: String = "KRW",
 ) {
     fun toCommand(idempotencyKey: String, sellerId: UserId) = PlaceListingCommand(
         idempotencyKey, sellerId, SkuId.of(skuId),
@@ -37,8 +39,8 @@ data class PlaceListingResponse(
 
 data class PlaceBidRequest(
     @field:NotBlank val skuId: String,
-    @field:Positive val price: Long,
-    @field:NotBlank val currency: String = "KRW",
+    @field:Positive @field:Max(10_000_000_000L) val price: Long,
+    @field:NotBlank @field:Size(min = 3, max = 3) val currency: String = "KRW",
 ) {
     fun toCommand(idempotencyKey: String, buyerId: UserId) = PlaceBidCommand(
         idempotencyKey, buyerId, SkuId.of(skuId),
