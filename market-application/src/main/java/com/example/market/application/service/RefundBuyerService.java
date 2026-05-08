@@ -23,7 +23,8 @@ import java.time.Instant;
  * InspectionFailed 컨슈머 — Trade.startRefunding → PG.refund() → Refund.complete →
  * Trade.closeAsFailedAfterRefund.
  *
- * <p>idempotent: trade 가 이미 REFUNDING/FAILED 면 새 Refund 생성하지 않음.</p>
+ * <p>idempotent (ADR-0023): {@link CompensationGuard} 로 PG.refund 가 *정확히 한 번* 일어나도록
+ * 보장. 메시지 컨슈머의 at-least-once 중복이 들어와도 PG 가 두 번 호출되지 않는다.</p>
  *
  * <p>PG.refund 실패 시 Refund.fail() — 운영자가 RetryRefundUseCase 로 재시도.</p>
  */
@@ -32,10 +33,13 @@ import java.time.Instant;
 @Slf4j
 public class RefundBuyerService implements RefundBuyerUseCase {
 
+    private static final String OP = "REFUND";
+
     private final TradeRepository trades;
     private final RefundRepository refunds;
     private final PgClient pgClient;
     private final EventPublisher events;
+    private final CompensationGuard compensationGuard;
     private final Clock clock;
 
     @Override
@@ -64,24 +68,33 @@ public class RefundBuyerService implements RefundBuyerUseCase {
         trades.save(trade);
         events.publish(startEv);
 
-        // PG 환불 호출
-        var result = pgClient.refund(new PgClient.RefundRequest(
-                trade.pgPaymentId(), refund.amount(), refund.reason()));
+        // PG 환불 호출 — CompensationGuard 가 정확히 한 번 보장. 같은 trade 의 refund 가 재호출
+        // 되어도 PG 가 두 번 호출되지 않고 캐시된 결과 (pgRefundId) 가 반환된다.
+        var outcome = compensationGuard.runOnce(OP, trade.id().toString(), prev -> {
+            var result = pgClient.refund(new PgClient.RefundRequest(
+                    trade.pgPaymentId(), refund.amount(), refund.reason()));
+            if (result.approved()) {
+                return CompensationGuard.Outcome.completed(
+                        result.pgRefundId(), "APPROVED", "ok", result);
+            }
+            return CompensationGuard.Outcome.failed(
+                    "REJECTED", result.errorMessage(), result);
+        });
 
-        if (result.approved()) {
-            var doneEv = refund.complete(result.pgRefundId(), now);
+        if (outcome.completed()) {
+            var doneEv = refund.complete(outcome.externalId(), now);
             var closeEv = trade.closeAsFailedAfterRefund(now);
             refunds.save(refund);
             trades.save(trade);
             events.publishAll(doneEv, closeEv);
-            log.info("refund complete trade={} pgRefundId={}", trade.id(), result.pgRefundId());
+            log.info("refund complete trade={} pgRefundId={}", trade.id(), outcome.externalId());
         } else {
-            var failEv = refund.fail(result.errorMessage(), now);
+            var failEv = refund.fail(outcome.responseMessage(), now);
             refunds.save(refund);
             events.publish(failEv);
-            log.warn("refund failed trade={} reason={}", trade.id(), result.errorMessage());
+            log.warn("refund failed trade={} reason={}", trade.id(), outcome.responseMessage());
             // PG 실패 — Trade 는 REFUNDING 에 머무름. 운영자 RetryRefundUseCase 로 처리
-            throw new PgFailureException("REFUND_REJECTED", result.errorMessage());
+            throw new PgFailureException("REFUND_REJECTED", outcome.responseMessage());
         }
         return refund;
     }

@@ -1,6 +1,7 @@
 package com.example.market.application.service;
 
 import com.example.market.application.port.out.BankTransferClient;
+import com.example.market.application.port.out.CompensationLogStore;
 import com.example.market.application.port.out.EventPublisher;
 import com.example.market.application.port.out.PayoutRepository;
 import com.example.market.application.port.out.TradeRepository;
@@ -52,8 +53,34 @@ class SettleTradeServiceTest {
         payouts = mock(PayoutRepository.class);
         bank = mock(BankTransferClient.class);
         events = mock(EventPublisher.class);
-        service = new SettleTradeService(trades, payouts, bank, events,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        CompensationGuard guard = new CompensationGuard(new InMemoryCompensationLogStore(), clock);
+        service = new SettleTradeService(trades, payouts, bank, events, guard, clock);
+    }
+
+    /** in-memory store — RefundBuyerServiceTest 의 InMemoryCompensationLogStore 와 동등. */
+    static final class InMemoryCompensationLogStore implements CompensationLogStore {
+        private final java.util.Map<String, Entry> rows = new java.util.concurrent.ConcurrentHashMap<>();
+        private static String k(String op, String key) { return op + "|" + key; }
+
+        @Override public void begin(String op, String key, java.time.Instant now) {
+            var prev = rows.putIfAbsent(k(op, key),
+                    new Entry(op, key, Status.IN_PROGRESS, null, null, null, now, null));
+            if (prev != null) throw new DuplicateBeginException(op, key);
+        }
+        @Override public void complete(String op, String key, String code, String msg, String externalId, java.time.Instant now) {
+            rows.put(k(op, key),
+                    new Entry(op, key, Status.COMPLETED, code, msg, externalId,
+                            rows.get(k(op, key)).startedAt(), now));
+        }
+        @Override public void fail(String op, String key, String code, String msg, java.time.Instant now) {
+            rows.put(k(op, key),
+                    new Entry(op, key, Status.FAILED, code, msg, null,
+                            rows.get(k(op, key)).startedAt(), now));
+        }
+        @Override public java.util.Optional<Entry> find(String op, String key) {
+            return java.util.Optional.ofNullable(rows.get(k(op, key)));
+        }
     }
 
     @Test

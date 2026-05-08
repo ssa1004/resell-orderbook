@@ -1,6 +1,7 @@
 package com.example.market.application.service;
 
 import com.example.market.application.exception.PgFailureException;
+import com.example.market.application.port.out.CompensationLogStore;
 import com.example.market.application.port.out.EventPublisher;
 import com.example.market.application.port.out.PgClient;
 import com.example.market.application.port.out.RefundRepository;
@@ -55,8 +56,43 @@ class RefundBuyerServiceTest {
         refunds = mock(RefundRepository.class);
         pgClient = mock(PgClient.class);
         events = mock(EventPublisher.class);
-        service = new RefundBuyerService(trades, refunds, pgClient, events,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        // 테스트는 in-memory CompensationLogStore — 매 테스트마다 빈 상태로 시작.
+        CompensationGuard guard = new CompensationGuard(new InMemoryCompensationLogStore(), clock);
+        service = new RefundBuyerService(trades, refunds, pgClient, events, guard, clock);
+    }
+
+    /** 테스트 전용 in-memory store — JPA 기반 store 의 PK 충돌 / cache 거동을 simulate. */
+    static final class InMemoryCompensationLogStore implements CompensationLogStore {
+        private final java.util.Map<String, Entry> rows = new java.util.concurrent.ConcurrentHashMap<>();
+
+        private static String k(String op, String key) { return op + "|" + key; }
+
+        @Override
+        public void begin(String operation, String businessKey, java.time.Instant now) {
+            var prev = rows.putIfAbsent(k(operation, businessKey),
+                    new Entry(operation, businessKey, Status.IN_PROGRESS, null, null, null, now, null));
+            if (prev != null) throw new DuplicateBeginException(operation, businessKey);
+        }
+
+        @Override
+        public void complete(String operation, String businessKey, String code, String msg, String externalId, java.time.Instant now) {
+            rows.put(k(operation, businessKey),
+                    new Entry(operation, businessKey, Status.COMPLETED, code, msg, externalId,
+                            rows.get(k(operation, businessKey)).startedAt(), now));
+        }
+
+        @Override
+        public void fail(String operation, String businessKey, String code, String msg, java.time.Instant now) {
+            rows.put(k(operation, businessKey),
+                    new Entry(operation, businessKey, Status.FAILED, code, msg, null,
+                            rows.get(k(operation, businessKey)).startedAt(), now));
+        }
+
+        @Override
+        public java.util.Optional<Entry> find(String operation, String businessKey) {
+            return java.util.Optional.ofNullable(rows.get(k(operation, businessKey)));
+        }
     }
 
     @Test

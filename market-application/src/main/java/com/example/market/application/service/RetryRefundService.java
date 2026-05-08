@@ -31,10 +31,14 @@ import java.time.Instant;
 @Slf4j
 public class RetryRefundService implements RetryRefundUseCase {
 
+    /** RetryRefund 의 보상 키 — 같은 RefundId 에 대한 재시도를 구분 (원래 REFUND 와 별 row). */
+    private static final String OP = "REFUND_RETRY";
+
     private final RefundRepository refunds;
     private final TradeRepository trades;
     private final PgClient pgClient;
     private final EventPublisher events;
+    private final CompensationGuard compensationGuard;
     private final Clock clock;
 
     @Override
@@ -53,22 +57,30 @@ public class RetryRefundService implements RetryRefundUseCase {
                 failedRefund.amount(), "RETRY: " + failedRefund.reason(), now);
         refunds.save(retry);
 
-        var result = pgClient.refund(new PgClient.RefundRequest(
-                trade.pgPaymentId(), retry.amount(), retry.reason()));
+        var outcome = compensationGuard.runOnce(OP, refundId.toString(), prev -> {
+            var result = pgClient.refund(new PgClient.RefundRequest(
+                    trade.pgPaymentId(), retry.amount(), retry.reason()));
+            if (result.approved()) {
+                return CompensationGuard.Outcome.completed(
+                        result.pgRefundId(), "APPROVED", "ok", result);
+            }
+            return CompensationGuard.Outcome.failed(
+                    "REJECTED", result.errorMessage(), result);
+        });
 
-        if (result.approved()) {
-            var doneEv = retry.complete(result.pgRefundId(), now);
+        if (outcome.completed()) {
+            var doneEv = retry.complete(outcome.externalId(), now);
             var closeEv = trade.closeAsFailedAfterRefund(now);
             refunds.save(retry);
             trades.save(trade);
             events.publishAll(doneEv, closeEv);
-            log.info("refund retry succeeded refund={} pgRefundId={}", retry.id(), result.pgRefundId());
+            log.info("refund retry succeeded refund={} pgRefundId={}", retry.id(), outcome.externalId());
         } else {
-            var failEv = retry.fail(result.errorMessage(), now);
+            var failEv = retry.fail(outcome.responseMessage(), now);
             refunds.save(retry);
             events.publish(failEv);
-            log.error("refund retry failed again refund={} reason={}", retry.id(), result.errorMessage());
-            throw new PgFailureException("REFUND_RETRY_REJECTED", result.errorMessage());
+            log.error("refund retry failed again refund={} reason={}", retry.id(), outcome.responseMessage());
+            throw new PgFailureException("REFUND_RETRY_REJECTED", outcome.responseMessage());
         }
     }
 }
