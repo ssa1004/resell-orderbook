@@ -8,10 +8,12 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 @EntityScan(basePackages = {
         "com.example.market.adapter.out.persistence.jpa.entity",
         "com.example.market.adapter.out.persistence.outbox",
+        "com.example.market.adapter.out.persistence.compensation",
 })
 @EnableJpaRepositories(basePackages = {
         "com.example.market.adapter.out.persistence.jpa.repository",
         "com.example.market.adapter.out.persistence.outbox",
+        "com.example.market.adapter.out.persistence.compensation",
 })
 public class PersistenceConfig {
 }
