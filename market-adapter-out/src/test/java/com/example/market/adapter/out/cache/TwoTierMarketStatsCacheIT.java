@@ -83,10 +83,13 @@ class TwoTierMarketStatsCacheIT {
     }
 
     private TwoTierMarketStatsCache newCache(Clock clock, long l1TtlMs, long l2TtlMs) {
+        // loader-retry-wait 을 50ms × 10회 = 500ms 로 — cold start 동시 진입 thread 들이 lock holder
+        // (loader p99 가정 80~200ms) 가 채울 때까지 기다릴 수 있도록. 너무 짧으면 fallback path 로
+        // 빠져 stampede 방어가 무력화된다.
         return new TwoTierMarketStatsCache(
                 redis, objectMapper, clock,
                 l1TtlMs, l2TtlMs, 10_000, 5_000,
-                10, 3);
+                50, 10);
     }
 
     private static MarketStats fakeStats(SkuId sku, long price, Instant at) {
