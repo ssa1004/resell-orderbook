@@ -32,7 +32,7 @@ class MoneyTest {
     @Test
     void percentage_5_5_of_100000() {
         Money price = Money.of(100_000, KRW);
-        // KREAM 거래 수수료 5.5%
+        // 거래 수수료 5.5% 적용 예
         Money fee = price.percentage(new BigDecimal("5.5"));
         assertThat(fee.amount()).isEqualByComparingTo("5500");
     }

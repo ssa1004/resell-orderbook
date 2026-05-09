@@ -8,7 +8,7 @@ import java.time.Duration;
  * <p><b>Token bucket 알고리즘</b>: 통(bucket) 에 토큰이 매 {@code refillInterval} 마다 {@code refillTokens}
  * 개씩 천천히 채워지고, 요청 1건이 토큰 1개를 소비. 토큰이 없으면 거부 (429). 통의 최대 용량은
  * {@code capacity} — burst (일시적 트래픽 폭증) 를 일정량 까지 허용 + 평균 rate 는 refill rate 로
- * 제한. Stripe / GitHub API / Naver 검색 API 가 같은 패턴.</p>
+ * 제한. 응답 형식 (`429 Too Many Requests` + `Retry-After`) 은 RFC 6585 / RFC 7231 표준.</p>
  *
  * <p><b>왜 sliding window 가 아닌 token bucket?</b> sliding window 는 정확하지만 메모리 더 쓰고
  * 단발 burst 처리가 어색. token bucket 은 *count + last refill timestamp* 두 값만 있으면 됨 → Redis

@@ -10,8 +10,8 @@ import java.util.function.Supplier;
  *
  * <p><b>왜 필요한가</b>: hot SKU (인기 한정판) 의 시세 카드 조회는 사용자 화면 폴링 / 호가창
  * 새로고침 / 차트 보기 등으로 매우 자주 호출된다. 매번 DB 로 가면 Postgres 가 같은 SKU 의
- * COUNT/MIN/AVG/MAX (24h aggregation) 를 반복 계산해 압박을 받는다. 카카오톡 / Line / Naver 의
- * "인기 콘텐츠 카운트" 도 같은 패턴 — 자주 읽히고 가끔 갱신되는 파생 read model 은 캐시에 친화적.</p>
+ * COUNT/MIN/AVG/MAX (24h aggregation) 를 반복 계산해 압박을 받는다. 자주 읽히고 가끔 갱신되는
+ * 파생 read model 은 일반적으로 캐시에 친화적인 워크로드.</p>
  *
  * <p><b>2단 구성 (Caffeine L1 + Redis L2)</b>:
  * <ul>

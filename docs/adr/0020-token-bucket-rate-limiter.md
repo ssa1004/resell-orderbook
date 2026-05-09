@@ -19,7 +19,9 @@
 - `POST /api/v1/trades/buy-now`   — 즉시 구매
 - `POST /api/v1/trades/sell-now`  — 즉시 판매
 
-Stripe / GitHub API / Naver 검색 API 가 모두 같은 종류의 보호를 둔다.
+이 패턴은 [Stripe API rate limits](https://stripe.com/docs/rate-limits) 등 공개된 표준
+스펙으로 정리되어 있고 — 클라이언트가 받는 응답 (`429 Too Many Requests` + `Retry-After`)
+까지 RFC 6585 / RFC 7231 로 정해져 있어 도입에 모호함이 적다.
 
 ## 결정
 
@@ -122,7 +124,7 @@ endpoint 는 인증된 사용자가 자기 행위에 대해 호출하므로 fail
 ## 결과
 
 - (장) atomic — 동시 요청이 통을 같이 빼는 race 없음 (Lua EVAL 보장)
-- (장) Stripe / GitHub 와 같은 패턴 — Retry-After 헤더가 표준이라 client 가 처리하기 쉬움
+- (장) Retry-After 헤더가 RFC 표준이라 client 측에서 처리하기 쉬움
 - (장) annotation 로 endpoint 별 정책 차등 — 코드가 *어떤* 보호인지 controller method 에서 바로 보임
 - (장) Redis 장애에도 fail-open — 가용성 우선
 - (단) 분산 환경에서 Redis RTT 가 latency 에 더해짐 (~0.5~1ms). 호가 등록의 latency budget 내라 OK

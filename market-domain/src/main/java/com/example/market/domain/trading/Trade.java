@@ -17,8 +17,8 @@ import java.util.Objects;
  * 나중에 들어온 호가 = taker 가, 미리 들어와 있던 호가 = maker 의 가격을 받아간다). 호출자가
  * 결정해서 넘긴다.</p>
  *
- * <p>매칭 시점에 {@link FeeSnapshot} 을 박제(freeze) 한다 — 정책이 나중에 바뀌어도 이 거래의
- * 수수료 명세는 변하지 않는다.</p>
+ * <p>매칭 시점에 {@link FeeSnapshot} 을 스냅샷으로 고정 (freeze) 한다 — 정책이 나중에 바뀌어도
+ * 이 거래의 수수료 명세는 변하지 않는다.</p>
  *
  * <p>상태 머신 ({@link TradeStatus} 가 단계별로 정의된 상태 흐름):</p>
  * <pre>
@@ -40,7 +40,7 @@ public class Trade {
     private final UserId sellerId;
     private final UserId buyerId;
     private final Money price;            // 체결가
-    private final FeeSnapshot feeSnapshot; // 매칭 순간의 수수료 명세를 그대로 박제 (이후 정책이 바뀌어도 불변)
+    private final FeeSnapshot feeSnapshot; // 매칭 순간의 수수료 명세 (이후 정책이 바뀌어도 불변)
     private TradeStatus status;
     private String pgPaymentId;
     private String inspectionFailReason;
@@ -68,7 +68,7 @@ public class Trade {
         this.version = version;
     }
 
-    /** 매칭 시 Listing + Bid + 정책으로 Trade 를 생성. 정책은 이 순간 snapshot 으로 박제된다. */
+    /** 매칭 시 Listing + Bid + 정책으로 Trade 를 생성. 정책은 이 순간 snapshot 으로 고정된다. */
     public static Trade match(Listing listing, Bid bid, Money executionPrice,
                               FeePolicy feePolicy, Instant now) {
         Objects.requireNonNull(listing); Objects.requireNonNull(bid);

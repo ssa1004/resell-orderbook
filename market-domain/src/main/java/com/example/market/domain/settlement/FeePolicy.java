@@ -7,7 +7,7 @@ import java.util.Currency;
 import java.util.Objects;
 
 /**
- * 수수료 정책 — KREAM 모델을 그대로 따른다:
+ * 수수료 정책 — 한정판 리셀 마켓에서 일반적인 구성을 따른다:
  *
  * <ul>
  *   <li><strong>구매자 결제액</strong> = 거래가 + 구매자 수수료(%) + 검수비 + 배송비</li>
@@ -15,7 +15,7 @@ import java.util.Objects;
  *   <li>플랫폼 수익 = 구매자 수수료 + 판매자 수수료 + 검수비 + 배송비 - 결제대행 수수료</li>
  * </ul>
  *
- * <p>예 (KREAM 신발 ~150,000원 거래):</p>
+ * <p>예 (스니커즈 ~150,000원 거래):</p>
  * <pre>
  *   buyerCommissionRate=3.5  → 구매자 수수료 = 5,250
  *   sellerCommissionRate=3.0 → 판매자 수수료 = 4,500
@@ -28,8 +28,8 @@ import java.util.Objects;
  * </pre>
  *
  * <p>모든 수수료(fee)는 같은 통화여야 함 (KRW 가정). 정책은 시점별로 바뀔 수 있으므로 매칭이
- * 일어난 시점에 {@link FeeSnapshot} 으로 박제 — 이후 정책이 바뀌어도 이 거래의 수수료는 변하지
- * 않는다.</p>
+ * 일어난 시점에 {@link FeeSnapshot} 으로 그대로 보관 — 이후 정책이 바뀌어도 이 거래의 수수료는
+ * 변하지 않는다.</p>
  */
 public record FeePolicy(
         BigDecimal sellerCommissionRate,
@@ -84,7 +84,7 @@ public record FeePolicy(
                 .subtract(fixedProcessingFee);
     }
 
-    /** 매칭 순간의 수수료 명세를 그대로 박제 (freeze). 이후 정책이 바뀌어도 이 snapshot 은 불변. */
+    /** 매칭 순간의 수수료 명세를 스냅샷으로 고정 (freeze). 이후 정책이 바뀌어도 이 snapshot 은 불변. */
     public FeeSnapshot snapshotFor(Money tradeAmount) {
         Money sellerComm = sellerCommissionOf(tradeAmount);
         Money buyerComm = buyerCommissionOf(tradeAmount);

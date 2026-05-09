@@ -18,7 +18,7 @@ class PayoutTest {
     private static final Instant NOW = Instant.parse("2026-05-04T00:00:00Z");
     private static final UserId SELLER = UserId.of("seller-1");
 
-    private final FeePolicy KREAM_LIKE = new FeePolicy(
+    private final FeePolicy STANDARD_POLICY = new FeePolicy(
             new BigDecimal("3.0"),                       // sellerCommissionRate
             new BigDecimal("3.5"),                       // buyerCommissionRate
             Money.of(BigDecimal.valueOf(3_000), KRW),    // inspectionFee
@@ -28,7 +28,7 @@ class PayoutTest {
 
     @Test
     void scheduleFromSnapshot_calculatesNetCorrectly() {
-        FeeSnapshot snap = KREAM_LIKE.snapshotFor(money(150_000));
+        FeeSnapshot snap = STANDARD_POLICY.snapshotFor(money(150_000));
         Payout p = Payout.schedule(TradeId.newId(), SELLER, snap, NOW);
 
         // 150,000 * 3% = 4,500 sellerCommission
@@ -41,7 +41,7 @@ class PayoutTest {
 
     @Test
     void feeSnapshot_buyerChargeIsTradeAmountPlusBuyerFeesAndAddons() {
-        FeeSnapshot snap = KREAM_LIKE.snapshotFor(money(150_000));
+        FeeSnapshot snap = STANDARD_POLICY.snapshotFor(money(150_000));
         // buyerCharge = 150,000 + 5,250 + 3,000 + 3,000 = 161,250
         assertThat(snap.buyerCommission().amount()).isEqualByComparingTo("5250");
         assertThat(snap.buyerCharge().amount()).isEqualByComparingTo("161250");
@@ -49,7 +49,7 @@ class PayoutTest {
 
     @Test
     void feeSnapshot_platformRevenue_isAllFeesMinusProcessing() {
-        FeeSnapshot snap = KREAM_LIKE.snapshotFor(money(150_000));
+        FeeSnapshot snap = STANDARD_POLICY.snapshotFor(money(150_000));
         // 5,250 + 4,500 + 3,000 + 3,000 - 1,000 = 14,750
         assertThat(snap.platformRevenue().amount()).isEqualByComparingTo("14750");
     }
@@ -57,14 +57,14 @@ class PayoutTest {
     @Test
     void schedule_tooSmallToCoverSellerFees_rejectedAtSnapshot() {
         // 100원 거래 → seller commission(0) + processingFee(1000) = sellerNet 음수
-        assertThatThrownBy(() -> KREAM_LIKE.snapshotFor(money(100)))
+        assertThatThrownBy(() -> STANDARD_POLICY.snapshotFor(money(100)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("sellerNet negative");
     }
 
     @Test
     void send_thenComplete_happyPath() {
-        FeeSnapshot snap = KREAM_LIKE.snapshotFor(money(150_000));
+        FeeSnapshot snap = STANDARD_POLICY.snapshotFor(money(150_000));
         Payout p = Payout.schedule(TradeId.newId(), SELLER, snap, NOW);
         var sent = p.send("bank-tx-1", NOW);
         assertThat(p.status()).isEqualTo(PayoutStatus.SENT);
@@ -77,14 +77,14 @@ class PayoutTest {
 
     @Test
     void cannotCompleteBeforeSend() {
-        FeeSnapshot snap = KREAM_LIKE.snapshotFor(money(150_000));
+        FeeSnapshot snap = STANDARD_POLICY.snapshotFor(money(150_000));
         Payout p = Payout.schedule(TradeId.newId(), SELLER, snap, NOW);
         assertThatThrownBy(() -> p.complete(NOW)).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void fail_canHappenFromAnyNonTerminalState() {
-        FeeSnapshot snap = KREAM_LIKE.snapshotFor(money(150_000));
+        FeeSnapshot snap = STANDARD_POLICY.snapshotFor(money(150_000));
         Payout p = Payout.schedule(TradeId.newId(), SELLER, snap, NOW);
         p.fail("bank rejected", NOW);
         assertThat(p.status()).isEqualTo(PayoutStatus.FAILED);

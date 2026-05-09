@@ -16,9 +16,9 @@ import java.util.function.Function;
  * <h3>왜 필요한가</h3>
  *
  * <p>Refund/Settle 같은 외부 호출형 보상 트랜잭션은 메시지 컨슈머의 at-least-once 특성 + 외부
- * 호출의 응답 유실 가능성으로 인해 실수로 두 번 호출될 수 있다. 토스 / 카카오페이는 이 문제를
- * "PG 호출 시 idempotencyKey 를 PG 에 그대로 넘기고, 결과는 자체 DB 에도 박아 캐시" 라는 표준
- * 패턴으로 해결.</p>
+ * 호출의 응답 유실 가능성으로 인해 실수로 두 번 호출될 수 있다. 결제/송금 도메인의 표준 처방은
+ * "외부 호출 시 idempotencyKey 를 함께 보내고, 결과는 자체 DB 에도 함께 저장해 캐시" 형태
+ * (Stripe Idempotent Requests 가 대표적인 공개 사례).</p>
  *
  * <h3>흐름</h3>
  *

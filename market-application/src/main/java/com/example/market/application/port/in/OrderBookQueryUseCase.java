@@ -18,6 +18,6 @@ public interface OrderBookQueryUseCase {
             List<PriceLevel> bids
     ) {}
 
-    /** 한 가격대의 호가 수량 (KREAM 호가창의 한 칸). */
+    /** 한 가격대의 호가 수량 (호가창 화면에서 한 칸을 차지하는 가격대 + 그 가격에 쌓인 호가 수). */
     record PriceLevel(Money price, int count) {}
 }

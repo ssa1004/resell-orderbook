@@ -6,8 +6,8 @@
 ## 배경
 
 `PriceTick` (체결 1건 시점의 가격) 은 매칭이 일어날 때마다 1행씩 INSERT 만 되는 *append-only*
-시계열 데이터다. KREAM/StockX 식 가격 차트, 24시간 통계, OHLC 캔들스틱이 모두 이 테이블에서
-파생된다. 따라서 자주 일어나는 read query 두 가지가 있다:
+시계열 데이터다. 가격 차트, 24시간 통계, OHLC 캔들스틱이 모두 이 테이블에서 파생된다.
+따라서 자주 일어나는 read query 두 가지가 있다:
 
 1. *최근 N건* (last trade, 차트 right-edge): `ORDER BY occurred_at DESC LIMIT N`
 2. *cursor pagination* (무한 스크롤, 실시간 차트 follow-up): "이전 페이지의 마지막 다음부터 N건"
@@ -20,8 +20,9 @@
   `(occurred_at, id)` 튜플 비교가 필요한데 등호 처리 / NULL 처리가 까다롭다.
 - *16 byte* — 8 byte (long) 의 두 배. 인덱스 메모리도 두 배.
 
-본 ADR 은 PriceTick 의 ID 를 **Twitter Snowflake** 형식의 64bit `long` 으로 바꾼다. Twitter,
-Discord, Line, 카카오톡 메시지 ID 가 같은 패턴을 쓴다.
+본 ADR 은 PriceTick 의 ID 를 **Snowflake** 형식의 64bit `long` 으로 바꾼다 (Twitter 가
+2010년 공개한 분산 ID 발급 알고리즘 — 시간 정렬 가능한 long ID 가 필요한 시계열/메시지
+시스템에서 표준 패턴으로 자리 잡았다).
 
 ## 결정
 

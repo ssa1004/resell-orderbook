@@ -5,7 +5,7 @@ import com.example.market.domain.shared.Money;
 import java.math.BigDecimal;
 
 /**
- * 거래가 성사된 순간의 수수료 계산서를 그대로 박제한 (freeze) 명세. Trade 애그리거트가 같이
+ * 거래가 성사된 순간의 수수료 계산서를 그대로 고정한 (freeze) 명세. Trade 애그리거트가 같이
  * 들고 다닌다 — 정책이 나중에 바뀌어도 과거 거래의 수수료/정산액은 이 snapshot 그대로 유지.
  *
  * <p>구매자 결제액, 판매자 정산액, 플랫폼 수익 모두 이 snapshot 의 값으로 결정된다.</p>

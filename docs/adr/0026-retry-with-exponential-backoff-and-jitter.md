@@ -22,9 +22,9 @@ ConnectException. 한두 번 재시도하면 자연스럽게 성공하는 경우
   → 재시도가 시간축에 펼쳐져 외부 시스템이 점진 회복할 여유를 받음
 ```
 
-전자가 *thundering herd* (한 번에 몰리는 무리) 패턴. AWS 의 [Exponential Backoff and Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
-(2015) 블로그 이래 Stripe / 토스페이먼츠 / 카카오페이 SDK 가 모두 *backoff + jitter* 를 표준으로
-삼는다.
+전자가 *thundering herd* (회복 시점에 다시 한 번에 몰리는 현상) 패턴. AWS 의
+[Exponential Backoff and Jitter](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
+(2015) 가 정리한 *backoff + jitter* 가 외부 호출 retry 의 사실상 표준 처방이 되었다.
 
 ADR-0009 에서 PG 호출에 Resilience4j `@Retry` 를 적용했지만, 당시 정책은 `enableExponentialBackoff: true`
 까지였고 jitter 가 없었다. 이 ADR 은 *jitter 추가* 와 *retry 대상의 화이트리스트* 를 정한다.
@@ -55,7 +55,7 @@ AWS 가 정리한 jitter 의 세 형태:
 
 | 종류 | 식 | 분산 정도 | 단점 |
 |---|---|---|---|
-| **No jitter** | `wait = base × 2^n` | 0 | thundering herd |
+| **No jitter** | `wait = base × 2^n` | 0 | 회복 시점에 retry 가 동시에 몰림 |
 | **Full jitter** | `wait = random(0, base × 2^n)` | 0 ~ 최대 | base 보다 짧게 시도되어 외부 부담 ↑ 가능성 |
 | **Equal jitter** | `wait = base × 2^n / 2 + random(0, base × 2^n / 2)` | base 의 절반 이상 ~ base 까지 | 분산 약함 |
 | **Decorrelated** | `wait = min(cap, random(base, prev × 3))` | wide | 구현 복잡 |
@@ -122,9 +122,10 @@ retry 가 *가장 안* 인 이유:
 
 ### 멱등성 — retry 안전성의 전제
 
-retry 는 *같은 호출을 두 번 보낼 가능성* 을 만든다. 외부 API 가 멱등이 아니면 *돈 두 번 빠지는*
-사고. 본 시스템의 모든 외부 호출은 `idempotencyKey` 를 함께 보내고 — 외부 PG / 은행 모두
-*같은 key 의 같은 요청은 한 번만* 실행하는 표준 인터페이스 (KCP / 토스 / NHN KCP 모두).
+retry 는 *같은 호출을 두 번 보낼 가능성* 을 만든다. 외부 API 가 멱등이 아니면 *결제가 두 번
+일어나는* 사고. 본 시스템의 모든 외부 호출은 `idempotencyKey` 를 함께 보내고 — 외부 PG / 은행
+모두 *같은 key 의 같은 요청은 한 번만* 실행하는 표준 인터페이스를 따른다 (Stripe Idempotent
+Requests 가 대표 사례).
 
 ADR-0008 의 클라이언트 측 idempotency-key store 와 별개로, *외부 API 측에도* idempotency-key 를
 보내 *외부 시스템이 멱등 보장* 을 하도록 한다. 양쪽 멱등성이 모두 있어야 retry 가 안전.
@@ -135,8 +136,8 @@ ADR-0008 의 클라이언트 측 idempotency-key store 와 별개로, *외부 AP
   블립에 노출. 외부 SLA 가 99.5% 라도 client SLA 는 그것보다 못함.
 - **No backoff (즉시 재시도)** — 외부 부담을 첫 시도와 같은 강도로 즉시 한 번 더. 외부 회복 여유
   주지 못함.
-- **No jitter** — 위 시나리오의 thundering herd. 단일 인스턴스 부하 테스트에선 안 보이고 다수 pod
-  운영에서 첫 사고 때 드러남.
+- **No jitter** — 위 시나리오의 회복 시점 동시 retry. 단일 인스턴스 부하 테스트에선 안 보이고
+  다수 pod 운영에서 첫 사고 때 드러남.
 - **Spring Retry (`@Retryable`)** — Resilience4j 와 같은 기능을 별 라이브러리로 제공. 본 시스템은
   이미 Resilience4j 를 CircuitBreaker / Bulkhead 에 사용 중이라 *같은 라이브러리* 로 통일.
 - **DLQ (Dead Letter Queue) 로 fallback** — retry 실패한 요청을 별 토픽으로 보내 재처리. write
@@ -146,7 +147,7 @@ ADR-0008 의 클라이언트 측 idempotency-key store 와 별개로, *외부 AP
 ## 결과
 
 - (장) Transient 오류가 사용자 응답 5xx 로 노출되지 않고 *조용히* 회복
-- (장) jitter 로 *fleet-wide thundering herd* 방지 — 외부 시스템 회복 시점에 retry 가 시간축에
+- (장) jitter 로 *전체 pod 동시 retry* 방지 — 외부 시스템 회복 시점에 retry 가 시간축에
   분산되어 부드러운 ramp-up
 - (장) 4xx 는 명시적으로 retry 안 함 — *클라이언트 잘못* 을 외부에 반복 부담하지 않음
 - (장) ADR-0021 (Bulkhead) + ADR-0009 (CB) 와 자연스럽게 결합 — Bulkhead → CB → Retry 표준 순서

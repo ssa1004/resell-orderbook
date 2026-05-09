@@ -13,7 +13,7 @@ import java.util.Objects;
  *
  * <p>{@code amount} 는 구매자가 결제 시점에 PG 에 결제한 총액 ({@link FeeSnapshot#buyerCharge()}) —
  * 즉 거래가 + 구매자 수수료 + 검수비 + 배송비 모두 포함. 검수 실패는 검수센터/판매자 책임이므로
- * 구매자는 부담한 모든 비용을 돌려받음 (KREAM 모델).</p>
+ * 구매자는 부담한 모든 비용을 돌려받는다.</p>
  *
  * <p>흐름: Trade.startRefunding() → Refund.request() → PG.refund() 성공 시 Refund.complete() →
  * Trade.closeAsFailedAfterRefund(). 환불 실패 (PG 응답 실패) 시 Refund.fail() — 운영자 수동 처리.</p>

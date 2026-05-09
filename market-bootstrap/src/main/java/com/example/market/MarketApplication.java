@@ -7,7 +7,7 @@ import org.springframework.modulith.Modulith;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * Resell Market Platform — KREAM/StockX 류 한정판 리셀 마켓 백엔드.
+ * Resell Market Platform — 한정판 스니커즈 리셀 마켓 백엔드.
  *
  * <p>Spring Modulith 가 모듈 경계를 검증 — {@link com.example.market.MarketApplicationModulithTest}.</p>
  */

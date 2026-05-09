@@ -12,8 +12,8 @@ import java.util.UUID;
  * <h3>왜 opaque 인가</h3>
  *
  * <p>클라이언트가 cursor 의 내용을 *보지 못하게* 하면 서버 쪽 cursor 의 필드 변경에 클라이언트
- * 호환성이 깨지지 않는다 (예: 단일 id → (time, id) 복합 키 전환). GitHub / Slack / Twitter
- * API 모두 같은 이유로 cursor 를 base64 인코딩.</p>
+ * 호환성이 깨지지 않는다 (예: 단일 id → (time, id) 복합 키 전환). cursor pagination 을 제공하는
+ * 공개 API 들이 보편적으로 채택하는 패턴.</p>
  *
  * <h3>구현</h3>
  *

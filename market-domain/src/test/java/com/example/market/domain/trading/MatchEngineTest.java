@@ -26,7 +26,7 @@ class MatchEngineTest {
     private static final UserId SELLER1 = UserId.of("seller-1");
     private static final UserId ALICE = UserId.of("alice");
 
-    private static final FeePolicy KREAM_LIKE = new FeePolicy(
+    private static final FeePolicy STANDARD_POLICY = new FeePolicy(
             new BigDecimal("3.0"), new BigDecimal("3.5"),
             money(3_000), money(3_000), money(1_000));
 
@@ -37,7 +37,7 @@ class MatchEngineTest {
         Bid existingBid = Bid.place(SKU, BUYER1, money(150_000), NOW);
         Listing newAsk = Listing.place(SKU, SELLER1, money(140_000), NOW);
 
-        Optional<Trade> trade = MatchEngine.matchNewAsk(newAsk, Optional.of(existingBid), KREAM_LIKE, NOW);
+        Optional<Trade> trade = MatchEngine.matchNewAsk(newAsk, Optional.of(existingBid), STANDARD_POLICY, NOW);
 
         assertThat(trade).isPresent();
         // BID 가 maker 였으므로 가격 = BID 가격
@@ -54,7 +54,7 @@ class MatchEngineTest {
         Bid existingBid = Bid.place(SKU, BUYER1, money(150_000), NOW);
         Listing newAsk = Listing.place(SKU, SELLER1, money(150_000), NOW);
 
-        Optional<Trade> trade = MatchEngine.matchNewAsk(newAsk, Optional.of(existingBid), KREAM_LIKE, NOW);
+        Optional<Trade> trade = MatchEngine.matchNewAsk(newAsk, Optional.of(existingBid), STANDARD_POLICY, NOW);
 
         assertThat(trade).isPresent();
         assertThat(trade.get().price()).isEqualTo(money(150_000));
@@ -65,27 +65,27 @@ class MatchEngineTest {
         Bid existingBid = Bid.place(SKU, BUYER1, money(150_000), NOW);
         Listing newAsk = Listing.place(SKU, SELLER1, money(160_000), NOW);
 
-        assertThat(MatchEngine.matchNewAsk(newAsk, Optional.of(existingBid), KREAM_LIKE, NOW)).isEmpty();
+        assertThat(MatchEngine.matchNewAsk(newAsk, Optional.of(existingBid), STANDARD_POLICY, NOW)).isEmpty();
     }
 
     @Test
     void newAsk_noBids_doesNotMatch() {
         Listing newAsk = Listing.place(SKU, SELLER1, money(140_000), NOW);
-        assertThat(MatchEngine.matchNewAsk(newAsk, Optional.empty(), KREAM_LIKE, NOW)).isEmpty();
+        assertThat(MatchEngine.matchNewAsk(newAsk, Optional.empty(), STANDARD_POLICY, NOW)).isEmpty();
     }
 
     @Test
     void newAsk_selfTrade_doesNotMatch() {
         Bid existingBid = Bid.place(SKU, ALICE, money(150_000), NOW);
         Listing newAsk = Listing.place(SKU, ALICE, money(140_000), NOW);
-        assertThat(MatchEngine.matchNewAsk(newAsk, Optional.of(existingBid), KREAM_LIKE, NOW)).isEmpty();
+        assertThat(MatchEngine.matchNewAsk(newAsk, Optional.of(existingBid), STANDARD_POLICY, NOW)).isEmpty();
     }
 
     @Test
     void newAsk_skuMismatch_doesNotMatch() {
         Bid bid = Bid.place(SkuId.newId(), BUYER1, money(150_000), NOW);
         Listing ask = Listing.place(SkuId.newId(), SELLER1, money(140_000), NOW);
-        assertThat(MatchEngine.matchNewAsk(ask, Optional.of(bid), KREAM_LIKE, NOW)).isEmpty();
+        assertThat(MatchEngine.matchNewAsk(ask, Optional.of(bid), STANDARD_POLICY, NOW)).isEmpty();
     }
 
     // ── 만료된 호가 거름 ──────────────────────────────
@@ -99,7 +99,7 @@ class MatchEngineTest {
         assertThat(expiredBid.isMatchableAt(NOW)).isFalse();  // 만료됐으므로 false
 
         Listing newAsk = Listing.place(SKU, SELLER1, money(140_000), NOW);
-        assertThat(MatchEngine.matchNewAsk(newAsk, Optional.of(expiredBid), KREAM_LIKE, NOW)).isEmpty();
+        assertThat(MatchEngine.matchNewAsk(newAsk, Optional.of(expiredBid), STANDARD_POLICY, NOW)).isEmpty();
     }
 
     @Test
@@ -107,7 +107,7 @@ class MatchEngineTest {
         Instant longAgo = NOW.minusSeconds(31L * 24 * 3600);
         Listing expiredAsk = Listing.place(SKU, SELLER1, money(140_000), longAgo);
         Bid newBid = Bid.place(SKU, BUYER1, money(150_000), NOW);
-        assertThat(MatchEngine.matchNewBid(newBid, Optional.of(expiredAsk), KREAM_LIKE, NOW)).isEmpty();
+        assertThat(MatchEngine.matchNewBid(newBid, Optional.of(expiredAsk), STANDARD_POLICY, NOW)).isEmpty();
     }
 
     // ── 새 BID vs 기존 ASK ──────────────────────────────
@@ -117,7 +117,7 @@ class MatchEngineTest {
         Listing existingAsk = Listing.place(SKU, SELLER1, money(140_000), NOW);
         Bid newBid = Bid.place(SKU, BUYER1, money(150_000), NOW);
 
-        Optional<Trade> trade = MatchEngine.matchNewBid(newBid, Optional.of(existingAsk), KREAM_LIKE, NOW);
+        Optional<Trade> trade = MatchEngine.matchNewBid(newBid, Optional.of(existingAsk), STANDARD_POLICY, NOW);
 
         assertThat(trade).isPresent();
         // ASK 가 maker 였으므로 가격 = ASK 가격 (구매자가 더 싸게 사게 됨)
@@ -128,7 +128,7 @@ class MatchEngineTest {
     void newBid_lowerThanAsk_doesNotMatch() {
         Listing existingAsk = Listing.place(SKU, SELLER1, money(150_000), NOW);
         Bid newBid = Bid.place(SKU, BUYER1, money(140_000), NOW);
-        assertThat(MatchEngine.matchNewBid(newBid, Optional.of(existingAsk), KREAM_LIKE, NOW)).isEmpty();
+        assertThat(MatchEngine.matchNewBid(newBid, Optional.of(existingAsk), STANDARD_POLICY, NOW)).isEmpty();
     }
 
     // ── BuyNow / SellNow ──────────────────────────────
@@ -136,7 +136,7 @@ class MatchEngineTest {
     @Test
     void buyNow_matchesLowestAsk_atAskPrice() {
         Listing ask = Listing.place(SKU, SELLER1, money(140_000), NOW);
-        Trade trade = MatchEngine.buyNow(ask, BUYER1, KREAM_LIKE, NOW);
+        Trade trade = MatchEngine.buyNow(ask, BUYER1, STANDARD_POLICY, NOW);
 
         assertThat(trade.price()).isEqualTo(money(140_000));
         assertThat(trade.sellerId()).isEqualTo(SELLER1);
@@ -147,21 +147,21 @@ class MatchEngineTest {
     @Test
     void buyNow_ownListing_throws() {
         Listing ask = Listing.place(SKU, ALICE, money(140_000), NOW);
-        assertThatThrownBy(() -> MatchEngine.buyNow(ask, ALICE, KREAM_LIKE, NOW))
+        assertThatThrownBy(() -> MatchEngine.buyNow(ask, ALICE, STANDARD_POLICY, NOW))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cannot buy own listing");
     }
 
     @Test
     void buyNow_nullAsk_throws() {
-        assertThatThrownBy(() -> MatchEngine.buyNow(null, BUYER1, KREAM_LIKE, NOW))
+        assertThatThrownBy(() -> MatchEngine.buyNow(null, BUYER1, STANDARD_POLICY, NOW))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void sellNow_matchesHighestBid_atBidPrice() {
         Bid bid = Bid.place(SKU, BUYER1, money(150_000), NOW);
-        Trade trade = MatchEngine.sellNow(bid, SELLER1, KREAM_LIKE, NOW);
+        Trade trade = MatchEngine.sellNow(bid, SELLER1, STANDARD_POLICY, NOW);
         assertThat(trade.price()).isEqualTo(money(150_000));
     }
 

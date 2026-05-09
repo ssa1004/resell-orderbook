@@ -36,7 +36,7 @@
 호출은 PG 에 도달하지 않고 fallback 으로 응답하는지.
 
 ## 후속 보강 — ADR-0026 의 jitter / retryExceptions
-초기 retry 정책은 *exponential backoff* 까지였다. 다수 pod 운영에서 *thundering herd* 위험이
-있어 ADR-0026 에서 *randomizedWaitFactor* (jitter) 와 *retryExceptions / ignoreExceptions*
-화이트리스트를 추가했다 (4xx 는 절대 retry 안 함). 본 ADR 의 결론 부분은 그대로 유효하고,
-jitter / 화이트리스트 정책은 ADR-0026 으로 분리.
+초기 retry 정책은 *exponential backoff* 까지였다. 다수 pod 운영에선 외부가 회복하는 순간에
+모든 pod 가 동시에 retry 를 던지는 위험이 있어, ADR-0026 에서 *randomizedWaitFactor* (jitter)
+와 *retryExceptions / ignoreExceptions* 화이트리스트를 추가했다 (4xx 는 절대 retry 안 함).
+본 ADR 의 결론 부분은 그대로 유효하고, jitter / 화이트리스트 정책은 ADR-0026 으로 분리.

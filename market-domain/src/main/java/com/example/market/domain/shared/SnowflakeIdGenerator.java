@@ -4,7 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 
 /**
- * 시간 순으로 정렬되는 64bit ID 생성기 (Twitter Snowflake 알고리즘).
+ * 시간 순으로 정렬되는 64bit ID 생성기 (Snowflake 알고리즘 — Twitter 가 2010년에 공개).
  *
  * <p><b>비유</b>: 영수증 번호처럼 시간이 흐를수록 번호가 *항상 커진다*. UUID 는 무작위라
  * "어느 게 더 최근인가" 를 ID 만 보고는 알 수 없는데, snowflake ID 는 ID 를 long 으로

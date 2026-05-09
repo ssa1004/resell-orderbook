@@ -9,8 +9,8 @@ import com.example.market.domain.trading.Trade;
  * 한 사용자 (구매자 / 판매자) 의 거래 내역을 cursor pagination 으로 조회 (ADR-0025).
  *
  * <p>OFFSET 페이지네이션 대신 cursor — *뒤 페이지에서도 일정한 latency*. 거래 내역은 누적되며
- * 클라이언트가 보통 처음 한두 페이지만 보면 끝나므로 *총 페이지 수* 가 필요 없는 cursor 방식이
- * 적합 (= 트위터 / 인스타그램 / Slack timeline 의 표준).</p>
+ * 클라이언트가 보통 처음 한두 페이지만 보면 끝나므로, 총 페이지 수가 필요 없는 cursor 방식이
+ * 적합 (timeline 무한 스크롤 화면의 일반 패턴).</p>
  */
 public interface TradeHistoryQueryUseCase {
 
