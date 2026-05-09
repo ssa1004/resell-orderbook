@@ -67,7 +67,7 @@ Resilience4j 서킷 브레이커 (외부 호출 실패율이 임계치를 넘으
 호가 등록과 체결 이벤트가 발생하면, 해당 SKU 를 구독 중인 클라이언트에게 호가창 스냅샷을
 서버가 직접 보내줍니다 (push). 5초마다 새로고침하는 방식 (polling) 보다 즉시 반영됩니다.
 
-설계 결정의 상세 배경은 [docs/adr/](docs/adr/) 의 ADR 14건에 정리되어 있습니다.
+설계 결정의 상세 배경은 [docs/adr/](docs/adr/) 의 ADR 27건에 정리되어 있습니다.
 
 ## 시스템 흐름
 
@@ -188,19 +188,19 @@ trade.ifPresentOrElse(t -> {
 ## 테스트 및 빌드
 
 ```bash
-./gradlew test                        # 전체 (109개)
+./gradlew check                       # 전체 (263개)
 ./gradlew :market-domain:test         # 도메인 단위
 ./gradlew :market-bootstrap:bootJar   # 배포용 jar 생성
 ```
 
 | 모듈 | 테스트 수 | 검증 |
 |---|---|---|
-| domain | 55 | Money, Listing/Bid 불변식, 매칭 엔진, 거래 상태머신, 수수료 계산 |
-| application | 25 | 매칭/결제/검수/환불/정산 서비스 (mock) |
-| adapter-out | 16 | Mock PG, Wiremock IT, Resilience4j CB, Redis Testcontainer |
-| adapter-in | 3 | TradingController slice (standalone MockMvc) |
-| bootstrap | 2 | Modulith verify, 모듈 다이어그램 자동 생성 |
-| e2e-tests | 8 | Postgres 위 매칭, 전체 라이프사이클, 검수 실패 환불 |
+| domain | 94 | Money, Listing/Bid 불변식, 매칭 엔진, 거래 상태머신, 수수료 계산, MarketStats / OHLC 집계, Snowflake ID |
+| application | 77 | 매칭/결제/검수/환불/정산 서비스, 토큰 버킷 rate limiter, saga 보상 멱등성 (mock 기반) |
+| adapter-in | 22 | TradingController / 호가창 STOMP / 인증 추출기 / GlobalExceptionHandler slice |
+| adapter-out | 54 | Mock PG, Wiremock IT, Resilience4j CB, Redis Testcontainer (2단 캐시 + pub/sub invalidation), Bulkhead, Outbox relay |
+| bootstrap | 8 | Modulith verify, application context smoke, 모듈 다이어그램 자동 생성 |
+| e2e-tests | 8 | Postgres 위 매칭, 전체 라이프사이클, 검수 실패 환불, 동시 매칭 race |
 
 ## 운영 프로필 (`prod`)
 
@@ -218,13 +218,13 @@ trade.ifPresentOrElse(t -> {
 ## 인프라
 
 - `infrastructure/Dockerfile`: multi-stage 빌드 (JDK 21 build → JRE 21 Alpine), non-root, ZGC
-- `infrastructure/k8s/`: PSS restricted, IRSA, PodDisruptionBudget, HPA
+- `infrastructure/k8s/`: PSS restricted, IRSA, PodDisruptionBudget, HPA, startup probe + preStop
+  + graceful shutdown (ADR-0027)
 - `infrastructure/docker-compose.yml`: 로컬 통합 환경 (postgres, redis, kafka, wiremock)
 - `.github/workflows/ci.yml`: 단위 테스트 → e2e → 정적 분석 → 이미지 빌드 + Trivy 스캔
 
 ## 향후 개선 사항
 
 - Elasticsearch 기반 상품 검색
-- 시계열 가격 차트 (TimescaleDB)
 - 검수 사진 ML 기반 가품 탐지
 - 운영자 대시보드 (검수 큐, 정산 현황)
