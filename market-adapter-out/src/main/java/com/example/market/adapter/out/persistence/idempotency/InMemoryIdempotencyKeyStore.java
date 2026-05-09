@@ -45,10 +45,19 @@ public class InMemoryIdempotencyKeyStore implements IdempotencyKeyStore {
     public void acquireOrThrow(String key) {
         Instant now = clock.instant();
         Instant expiry = now.plus(ttl);
-        Instant prev = seen.merge(key, expiry, (existing, candidate) ->
-                existing.isBefore(now) ? candidate : existing);
-        // 직전 값이 살아있는 항목 (= 만료 전) 이라면 중복 요청.
-        if (prev != null && !prev.equals(expiry) && prev.isAfter(now)) {
+        // putIfAbsent + compute 조합으로 "신규 점유 vs 기존 점유" 판정을 하나의 원자 연산으로.
+        // 동시 N개 스레드가 같은 expiry 값으로 들어와도 1개만 신규로 인정된다 (이전 merge 기반
+        // 구현은 BiFunction 안에서 prev/candidate Instant 가 동일 ns 일 때 둘 다 신규로 판정되는
+        // race 가 있었다).
+        boolean[] acquired = new boolean[1];
+        seen.compute(key, (k, existing) -> {
+            if (existing == null || existing.isBefore(now)) {
+                acquired[0] = true;
+                return expiry;
+            }
+            return existing;
+        });
+        if (!acquired[0]) {
             throw new DuplicateRequestException(key);
         }
         if (callCount.incrementAndGet() % SWEEP_INTERVAL == 0) {
