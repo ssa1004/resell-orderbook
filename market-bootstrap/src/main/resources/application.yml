@@ -49,9 +49,18 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+  lifecycle:
+    # K8s rolling restart 시 처리 중 요청 / Kafka consumer / Saga 한 단계가 정리될 시간.
+    # 도메인 트랜잭션 평균 ~100ms, outbox relay 한 batch (100건) ~ 수 초 → 30s 면 깔끔히 끝남.
+    # K8s deployment 의 terminationGracePeriodSeconds 보다 작아야 SIGKILL 전에 끝낼 수 있다.
+    timeout-per-shutdown-phase: 30s
 
 server:
   port: 8080
+  # SIGTERM 을 받으면 새 요청을 막고, 처리 중 요청은 끝날 때까지 대기 (graceful shutdown).
+  # K8s rolling restart 와 짝지어 트래픽 손실 0 을 보장. preStop sleep 으로 endpoints 에서
+  # pod 가 빠지는 시간 (보통 5~10s) 을 벌어주는 것이 전제.
+  shutdown: graceful
 
 springdoc:
   swagger-ui:

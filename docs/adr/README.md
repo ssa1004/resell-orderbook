@@ -30,3 +30,4 @@
 | [0024](0024-hikaricp-tuning-and-leak-detection.md) | HikariCP 풀 크기 튜닝과 connection leak detection | 적용 |
 | [0025](0025-cursor-based-pagination.md) | Cursor-based pagination — OFFSET 의 뒷페이지 절벽 회피 | 적용 |
 | [0026](0026-retry-with-exponential-backoff-and-jitter.md) | 외부 호출 retry — exponential backoff + jitter | 적용 |
+| [0027](0027-graceful-shutdown-and-startup-probe.md) | K8s rolling restart 트래픽 손실 0 — graceful shutdown + startup probe + preStop | 적용 |

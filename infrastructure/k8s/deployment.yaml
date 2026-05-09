@@ -21,6 +21,9 @@ spec:
         prometheus.io/path: "/actuator/prometheus"
     spec:
       serviceAccountName: market
+      # SIGTERM 부터 SIGKILL 까지의 여유 시간. preStop sleep 10s + Spring graceful shutdown
+      # (timeout-per-shutdown-phase=30s) + 여유 = 60s. 이 시간 안에 정리되지 않으면 SIGKILL.
+      terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -38,13 +41,31 @@ spec:
           resources:
             requests: { cpu: "500m", memory: "1Gi" }
             limits:   { cpu: "2",    memory: "2Gi" }
+          # Spring Boot cold start 가 길어 liveness 가 먼저 fail 하면서 무한 재시작에 빠지는
+          # 시나리오를 startup probe 로 차단. startup 이 성공한 뒤에야 liveness/readiness 가
+          # 동작하기 시작 — initialDelaySeconds 보다 안전.
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            failureThreshold: 30          # 30 × 2s = 최대 60s 부팅 허용
+            periodSeconds: 2
           livenessProbe:
             httpGet: { path: /actuator/health/liveness,  port: http }
-            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
           readinessProbe:
             httpGet: { path: /actuator/health/readiness, port: http }
-            initialDelaySeconds: 10
             periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          # K8s 가 endpoints 에서 pod 를 떼는 작업과 컨테이너에 SIGTERM 을 보내는 작업은
+          # 서로 비동기 — SIGTERM 이 먼저 도착하면 service 가 아직 이 pod 로 트래픽을 보내는
+          # 중이라 in-flight 요청이 connection refused 를 받는다. preStop sleep 으로 endpoint
+          # propagation (보통 5~10s) 가 끝나길 기다린 뒤 graceful shutdown 시작.
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 10"]
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
