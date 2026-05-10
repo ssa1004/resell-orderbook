@@ -1,6 +1,11 @@
 package com.example.market.adapter.web.dto
 
+import com.example.market.domain.marketdata.MarketStats
+import com.example.market.domain.marketdata.OhlcCandle
+import com.example.market.domain.marketdata.PriceTick
 import java.math.BigDecimal
+
+private const val DEFAULT_CURRENCY = "KRW"
 
 /**
  * 한 SKU 의 시세 카드 — 사용자 화면 / 운영자 dashboard 의 한 응답.
@@ -21,14 +26,41 @@ data class MarketStatsResponse(
     val last24hMin: BigDecimal?,
     val last24hAvg: BigDecimal?,
     val last24hMax: BigDecimal?,
-)
+) {
+    companion object {
+        fun from(s: MarketStats): MarketStatsResponse = MarketStatsResponse(
+            skuId = s.skuId().value().toString(),
+            asOf = s.asOf().toString(),
+            // 통화는 가격 필드에서 — 없으면 KRW default
+            currency = (s.lastTradePrice() ?: s.bestBid() ?: s.bestAsk())
+                ?.currency()?.currencyCode ?: DEFAULT_CURRENCY,
+            lastTradePrice = s.lastTradePrice()?.amount(),
+            lastTradeAt = s.lastTradeAt()?.toString(),
+            bestBid = s.bestBid()?.amount(),
+            bestAsk = s.bestAsk()?.amount(),
+            spread = s.spread()?.amount(),
+            last24hVolume = s.last24hVolume(),
+            last24hMin = s.last24hMin()?.amount(),
+            last24hAvg = s.last24hAvg()?.amount(),
+            last24hMax = s.last24hMax()?.amount(),
+        )
+    }
+}
 
 /** 차트 한 점 — 시간 + 가격. */
 data class PriceTickView(
     val tradeId: String,
     val price: BigDecimal,
     val occurredAt: String,
-)
+) {
+    companion object {
+        fun from(t: PriceTick): PriceTickView = PriceTickView(
+            tradeId = t.tradeId().toString(),
+            price = t.price().amount(),
+            occurredAt = t.occurredAt().toString(),
+        )
+    }
+}
 
 data class PriceTicksResponse(
     val skuId: String,
@@ -49,7 +81,19 @@ data class OhlcCandleView(
     val close: BigDecimal,
     val volume: Long,
     val tradeCount: Long,
-)
+) {
+    companion object {
+        fun from(c: OhlcCandle): OhlcCandleView = OhlcCandleView(
+            bucketStart = c.bucketStart().toString(),
+            open = c.open().amount(),
+            high = c.high().amount(),
+            low = c.low().amount(),
+            close = c.close().amount(),
+            volume = c.volume(),
+            tradeCount = c.tradeCount(),
+        )
+    }
+}
 
 data class OhlcCandlesResponse(
     val skuId: String,
@@ -58,4 +102,22 @@ data class OhlcCandlesResponse(
     val to: String,
     val currency: String,
     val candles: List<OhlcCandleView>,
-)
+) {
+    companion object {
+        /** 첫 캔들의 통화를 기준으로 설정. 비어 있으면 KRW. */
+        fun of(
+            skuId: String,
+            period: String,
+            from: String,
+            to: String,
+            candles: List<OhlcCandle>,
+        ): OhlcCandlesResponse = OhlcCandlesResponse(
+            skuId = skuId,
+            period = period,
+            from = from,
+            to = to,
+            currency = candles.firstOrNull()?.open()?.currency()?.currencyCode ?: DEFAULT_CURRENCY,
+            candles = candles.map(OhlcCandleView::from),
+        )
+    }
+}

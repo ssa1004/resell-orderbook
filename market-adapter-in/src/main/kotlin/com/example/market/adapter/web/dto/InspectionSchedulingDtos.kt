@@ -1,5 +1,8 @@
 package com.example.market.adapter.web.dto
 
+import com.example.market.domain.inspection.scheduling.InspectionAppointment
+import com.example.market.domain.inspection.scheduling.InspectionCenter
+import com.example.market.domain.inspection.scheduling.SlotAvailability
 import jakarta.validation.constraints.NotBlank
 
 data class BookAppointmentRequest(
@@ -17,7 +20,19 @@ data class AppointmentView(
     val slotEnd: String,
     val status: String,
     val bookedAt: String,
-)
+) {
+    companion object {
+        fun from(a: InspectionAppointment): AppointmentView = AppointmentView(
+            id = a.id().toString(),
+            tradeId = a.tradeId().toString(),
+            centerId = a.centerId().toString(),
+            slotStart = a.slotStart().toString(),
+            slotEnd = a.slotEnd().toString(),
+            status = a.status().name,
+            bookedAt = a.bookedAt().toString(),
+        )
+    }
+}
 
 data class CenterView(
     val id: String,
@@ -26,7 +41,18 @@ data class CenterView(
     val parallelCapacity: Int,
     val slotDurationMinutes: Long,
     val bookingLeadTimeMinutes: Long,
-)
+) {
+    companion object {
+        fun from(c: InspectionCenter): CenterView = CenterView(
+            id = c.id().toString(),
+            name = c.name(),
+            address = c.address(),
+            parallelCapacity = c.parallelCapacity(),
+            slotDurationMinutes = c.slotDuration().toMinutes(),
+            bookingLeadTimeMinutes = c.bookingLeadTime().toMinutes(),
+        )
+    }
+}
 
 data class CenterListResponse(val items: List<CenterView>)
 
@@ -37,7 +63,18 @@ data class SlotAvailabilityView(
     val bookedCount: Int,
     val remaining: Int,
     val bookable: Boolean,
-)
+) {
+    companion object {
+        fun from(s: SlotAvailability): SlotAvailabilityView = SlotAvailabilityView(
+            slotStart = s.slotStart().toString(),
+            slotEnd = s.slotEnd().toString(),
+            totalCapacity = s.totalCapacity(),
+            bookedCount = s.bookedCount(),
+            remaining = s.remaining(),
+            bookable = s.bookable(),
+        )
+    }
+}
 
 data class AvailableSlotsResponse(
     val centerId: String,

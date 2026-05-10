@@ -13,8 +13,6 @@ import com.example.market.application.port.`in`.BookAppointmentUseCase
 import com.example.market.application.port.`in`.InspectionAppointmentLifecycleUseCase
 import com.example.market.application.port.out.InspectionCenterRepository
 import com.example.market.domain.inspection.scheduling.AppointmentId
-import com.example.market.domain.inspection.scheduling.InspectionAppointment
-import com.example.market.domain.inspection.scheduling.InspectionCenter
 import com.example.market.domain.inspection.scheduling.InspectionCenterId
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -63,7 +61,7 @@ class InspectionSchedulingController(
     @GetMapping("/centers")
     @Operation(summary = "검수 센터 목록")
     fun listCenters(): ResponseEntity<CenterListResponse> {
-        val items = centers.findAll().map(::toCenterView)
+        val items = centers.findAll().map(CenterView::from)
         return ResponseEntity.ok(CenterListResponse(items = items))
     }
 
@@ -78,14 +76,7 @@ class InspectionSchedulingController(
             InspectionCenterId.of(centerId),
             Instant.parse(from),
             Instant.parse(to),
-        ).map { s -> SlotAvailabilityView(
-            slotStart = s.slotStart().toString(),
-            slotEnd = s.slotEnd().toString(),
-            totalCapacity = s.totalCapacity(),
-            bookedCount = s.bookedCount(),
-            remaining = s.remaining(),
-            bookable = s.bookable(),
-        ) }
+        ).map(SlotAvailabilityView::from)
         return ResponseEntity.ok(AvailableSlotsResponse(
             centerId = centerId, from = from, to = to, slots = slots
         ))
@@ -104,7 +95,7 @@ class InspectionSchedulingController(
             Instant.parse(req.desiredSlotTime),
         )
         val appt = bookAppointment.book(cmd)
-        return ResponseEntity.ok(toView(appt))
+        return ResponseEntity.ok(AppointmentView.from(appt))
     }
 
     @PostMapping("/appointments/{id}/cancel")
@@ -138,23 +129,4 @@ class InspectionSchedulingController(
         lifecycle.markRejected(AppointmentId.of(id))
         return ResponseEntity.noContent().build()
     }
-
-    private fun toView(a: InspectionAppointment): AppointmentView = AppointmentView(
-        id = a.id().toString(),
-        tradeId = a.tradeId().toString(),
-        centerId = a.centerId().toString(),
-        slotStart = a.slotStart().toString(),
-        slotEnd = a.slotEnd().toString(),
-        status = a.status().name,
-        bookedAt = a.bookedAt().toString(),
-    )
-
-    private fun toCenterView(c: InspectionCenter): CenterView = CenterView(
-        id = c.id().toString(),
-        name = c.name(),
-        address = c.address(),
-        parallelCapacity = c.parallelCapacity(),
-        slotDurationMinutes = c.slotDuration().toMinutes(),
-        bookingLeadTimeMinutes = c.bookingLeadTime().toMinutes(),
-    )
 }

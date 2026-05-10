@@ -42,24 +42,7 @@ class MarketDataController(
     @Operation(summary = "SKU 의 현재 시세 카드 (last trade + best bid/ask + 24h 통계)")
     fun stats(@PathVariable skuId: String): ResponseEntity<MarketStatsResponse> {
         val s = marketData.currentStats(SkuId.of(skuId))
-        return ResponseEntity.ok(
-            MarketStatsResponse(
-                skuId = s.skuId().value().toString(),
-                asOf = s.asOf().toString(),
-                // 통화는 가격 필드에서 — 없으면 KRW default
-                currency = (s.lastTradePrice() ?: s.bestBid() ?: s.bestAsk())
-                    ?.currency()?.currencyCode ?: "KRW",
-                lastTradePrice = s.lastTradePrice()?.amount(),
-                lastTradeAt = s.lastTradeAt()?.toString(),
-                bestBid = s.bestBid()?.amount(),
-                bestAsk = s.bestAsk()?.amount(),
-                spread = s.spread()?.amount(),
-                last24hVolume = s.last24hVolume(),
-                last24hMin = s.last24hMin()?.amount(),
-                last24hAvg = s.last24hAvg()?.amount(),
-                last24hMax = s.last24hMax()?.amount(),
-            )
-        )
+        return ResponseEntity.ok(MarketStatsResponse.from(s))
     }
 
     @GetMapping("/ticks/{skuId}")
@@ -70,14 +53,8 @@ class MarketDataController(
         @RequestParam to: String,           // ISO-8601
         @RequestParam(defaultValue = "1000") @Min(1) @Max(10_000) limit: Int,
     ): ResponseEntity<PriceTicksResponse> {
-        val fromInstant = Instant.parse(from)
-        val toInstant = Instant.parse(to)
-        val ticks = marketData.ticks(SkuId.of(skuId), fromInstant, toInstant, limit)
-            .map { PriceTickView(
-                tradeId = it.tradeId().toString(),
-                price = it.price().amount(),
-                occurredAt = it.occurredAt().toString(),
-            ) }
+        val ticks = marketData.ticks(SkuId.of(skuId), Instant.parse(from), Instant.parse(to), limit)
+            .map(PriceTickView::from)
         return ResponseEntity.ok(PriceTicksResponse(
             skuId = skuId,
             from = from,
@@ -103,13 +80,7 @@ class MarketDataController(
         val page = marketData.ticksAfter(SkuId.of(skuId), Cursor.of(cursor ?: ""), limit)
         return ResponseEntity.ok(
             CursorPageResponse(
-                items = page.items().map {
-                    PriceTickView(
-                        tradeId = it.tradeId().toString(),
-                        price = it.price().amount(),
-                        occurredAt = it.occurredAt().toString(),
-                    )
-                },
+                items = page.items().map(PriceTickView::from),
                 nextCursor = page.nextCursor().getOrNull()?.token(),
             )
         )
@@ -125,25 +96,11 @@ class MarketDataController(
         @RequestParam(defaultValue = "1000") @Min(1) @Max(10_000) limit: Int,
     ): ResponseEntity<OhlcCandlesResponse> {
         val periodEnum = OhlcPeriod.valueOf(period)
-        val fromInstant = Instant.parse(from)
-        val toInstant = Instant.parse(to)
-        val candles = marketData.ohlc(SkuId.of(skuId), periodEnum, fromInstant, toInstant, limit)
-        val currency = candles.firstOrNull()?.open()?.currency()?.currencyCode ?: "KRW"
-        return ResponseEntity.ok(OhlcCandlesResponse(
-            skuId = skuId,
-            period = periodEnum.name,
-            from = from,
-            to = to,
-            currency = currency,
-            candles = candles.map { c -> OhlcCandleView(
-                bucketStart = c.bucketStart().toString(),
-                open = c.open().amount(),
-                high = c.high().amount(),
-                low = c.low().amount(),
-                close = c.close().amount(),
-                volume = c.volume(),
-                tradeCount = c.tradeCount(),
-            ) },
-        ))
+        val candles = marketData.ohlc(
+            SkuId.of(skuId), periodEnum, Instant.parse(from), Instant.parse(to), limit,
+        )
+        return ResponseEntity.ok(
+            OhlcCandlesResponse.of(skuId, periodEnum.name, from, to, candles),
+        )
     }
 }
