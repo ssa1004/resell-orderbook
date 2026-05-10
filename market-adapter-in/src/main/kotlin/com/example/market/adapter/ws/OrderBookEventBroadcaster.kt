@@ -1,7 +1,8 @@
 package com.example.market.adapter.ws
 
 import com.example.market.adapter.kafka.MarketTopic
-import com.example.market.domain.catalog.SkuId
+import com.example.market.adapter.kafka.parseEvent
+import com.example.market.adapter.kafka.requireSkuId
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -28,8 +29,7 @@ class OrderBookEventBroadcaster(
     ], groupId = "orderbook-broadcaster")
     fun onOrderBookChanged(payload: String) {
         runCatching {
-            val node = objectMapper.readTree(payload)
-            val skuId = SkuId.of(node.get("skuId").get("value").asText())
+            val skuId = objectMapper.parseEvent(payload).requireSkuId()
             handler.broadcastChange(skuId)
         }.onFailure { log.warn("orderbook broadcast skipped: {}", it.message) }
     }

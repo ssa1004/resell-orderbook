@@ -1,7 +1,8 @@
 package com.example.market.adapter.ws
 
 import com.example.market.adapter.kafka.MarketTopic
-import com.fasterxml.jackson.databind.JsonNode
+import com.example.market.adapter.kafka.parseEvent
+import com.example.market.adapter.kafka.valueOf
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -50,16 +51,16 @@ class UserNotificationBroadcaster(
     )
     fun onTradeEvent(payload: String) {
         // 파싱 실패 → JsonProcessingException → 컨테이너로 propagate → 3회 재시도 후 DLQ
-        val node: JsonNode = objectMapper.readTree(payload)
+        val node = objectMapper.parseEvent(payload)
 
         val notification = mapOf(
             "type" to (node.get("eventType")?.asText() ?: "TradeEvent"),
-            "tradeId" to (node.get("tradeId")?.get("value")?.asText()),
+            "tradeId" to node.valueOf("tradeId"),
             "occurredAt" to (node.get("occurredAt")?.asText()),
         )
 
         val recipients = sequenceOf("buyerId", "sellerId")
-            .mapNotNull { node.get(it)?.get("value")?.asText() }
+            .mapNotNull { node.valueOf(it) }
             .toList()
         if (recipients.isEmpty()) {
             // buyer/seller 가 없는 이벤트는 사용자 알림 대상이 아니다 — 재시도 의미 없음

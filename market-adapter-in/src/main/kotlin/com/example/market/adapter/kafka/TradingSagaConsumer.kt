@@ -6,7 +6,6 @@ import com.example.market.application.port.`in`.AuthorizePaymentUseCase
 import com.example.market.application.port.`in`.RefundBuyerUseCase
 import com.example.market.application.port.`in`.SettleTradeUseCase
 import com.example.market.application.port.`in`.StartBuyerShippingUseCase
-import com.example.market.domain.trading.TradeId
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -38,32 +37,28 @@ class TradingSagaConsumer(
 
     @KafkaListener(topics = [MarketTopic.TRADE_MATCHED], groupId = "saga-authorize")
     fun onTradeMatched(payload: String) {
-        val node = objectMapper.readTree(payload)
-        val tradeId = TradeId.of(node.get("tradeId").get("value").asText())
+        val tradeId = objectMapper.parseEvent(payload).requireTradeId()
         log.info("[saga] TradeMatched → authorizePayment trade={}", tradeId)
         authorizePayment.authorize(AuthorizePaymentCommand(tradeId))
     }
 
     @KafkaListener(topics = [MarketTopic.INSPECTION_PASSED], groupId = "saga-buyer-shipping")
     fun onInspectionPassed(payload: String) {
-        val node = objectMapper.readTree(payload)
-        val tradeId = TradeId.of(node.get("tradeId").get("value").asText())
+        val tradeId = objectMapper.parseEvent(payload).requireTradeId()
         log.info("[saga] InspectionPassed → startBuyerShipping trade={}", tradeId)
-        startBuyerShipping.start(StartBuyerShippingCommand(tradeId, "AUTO-" + tradeId))
+        startBuyerShipping.start(StartBuyerShippingCommand(tradeId, "AUTO-$tradeId"))
     }
 
     @KafkaListener(topics = [MarketTopic.INSPECTION_FAILED], groupId = "saga-refund")
     fun onInspectionFailed(payload: String) {
-        val node = objectMapper.readTree(payload)
-        val tradeId = TradeId.of(node.get("tradeId").get("value").asText())
+        val tradeId = objectMapper.parseEvent(payload).requireTradeId()
         log.info("[saga] InspectionFailed → refundBuyer trade={}", tradeId)
         refundBuyer.refund(tradeId)
     }
 
     @KafkaListener(topics = [MarketTopic.TRADE_COMPLETED], groupId = "saga-settle")
     fun onTradeCompleted(payload: String) {
-        val node = objectMapper.readTree(payload)
-        val tradeId = TradeId.of(node.get("tradeId").get("value").asText())
+        val tradeId = objectMapper.parseEvent(payload).requireTradeId()
         log.info("[saga] TradeCompleted → settle trade={}", tradeId)
         settleTrade.settle(tradeId)
     }

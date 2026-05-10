@@ -1,9 +1,10 @@
 package com.example.market.adapter.ws
 
 import com.example.market.adapter.kafka.MarketTopic
+import com.example.market.adapter.kafka.parseEvent
+import com.example.market.adapter.kafka.requireSkuId
 import com.example.market.adapter.web.dto.OrderBookView
 import com.example.market.application.port.`in`.OrderBookQueryUseCase
-import com.example.market.domain.catalog.SkuId
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -44,8 +45,7 @@ class StompOrderBookBroadcaster(
     )
     fun onOrderBookChanged(payload: String) {
         runCatching {
-            val node = objectMapper.readTree(payload)
-            val skuId = SkuId.of(node.get("skuId").get("value").asText())
+            val skuId = objectMapper.parseEvent(payload).requireSkuId()
             val snapshot = OrderBookView.from(orderBookQuery.view(skuId, 10))
             messagingTemplate.convertAndSend("/topic/orderbook/${skuId.value()}", snapshot)
         }.onFailure { log.warn("stomp orderbook broadcast skipped: {}", it.message) }
