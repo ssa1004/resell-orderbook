@@ -220,8 +220,59 @@ trade.ifPresentOrElse(t -> {
 - `infrastructure/Dockerfile`: multi-stage 빌드 (JDK 21 build → JRE 21 Alpine), non-root, ZGC
 - `infrastructure/k8s/`: PSS restricted, IRSA, PodDisruptionBudget, HPA, startup probe + preStop
   + graceful shutdown (ADR-0027)
+- `helm/resell-orderbook/`: 위 raw manifests 를 그대로 옮긴 Helm chart (아래 절 참고)
 - `infrastructure/docker-compose.yml`: 로컬 통합 환경 (postgres, redis, kafka, wiremock)
 - `.github/workflows/ci.yml`: 단위 테스트 → e2e → 정적 분석 → 이미지 빌드 + Trivy 스캔
+
+### Helm chart
+
+`infrastructure/k8s/` 의 raw manifests 와 같은 구성을 Helm chart 로 묶었습니다. 다중 환경
+(dev / staging / prod) 에서 image tag, replicas, secret 참조 방식만 바꿔 끼울 수 있도록
+values 로 모았습니다.
+
+```
+helm/resell-orderbook/
+├── Chart.yaml
+├── values.yaml          # dev 기본값 (replicas 1, wiremock on, NetworkPolicy off)
+├── values-prod.yaml     # 운영 오버라이드 (replicas 3, HPA, ingress TLS, NP 활성, secret 참조)
+└── templates/           # deployment / service / configmap / secret / serviceaccount
+                         # / ingress / hpa / pdb / networkpolicy / wiremock / NOTES.txt
+```
+
+운영 배포:
+
+```bash
+# Postgres password / PG webhook secret 은 chart 밖에서 미리 생성 (예: SealedSecrets, ESO)
+kubectl -n market create secret generic market-postgres \
+  --from-literal=password='...'
+kubectl -n market create secret generic market-pg-webhook \
+  --from-literal=webhook-secret='...'
+
+helm upgrade --install resell-orderbook ./helm/resell-orderbook \
+  -n market --create-namespace \
+  -f helm/resell-orderbook/values-prod.yaml \
+  --set image.tag=$(git rev-parse --short HEAD)
+```
+
+dev 클러스터 (kind / minikube) 에서 외부 의존 없이:
+
+```bash
+helm upgrade --install ro ./helm/resell-orderbook -n market --create-namespace
+# wiremock 이 같은 chart 안에서 함께 떠서 외부 PG 호출이 mock 으로 닫힘.
+```
+
+검증:
+
+```bash
+helm lint helm/resell-orderbook
+helm lint helm/resell-orderbook -f helm/resell-orderbook/values-prod.yaml
+helm template ro helm/resell-orderbook -n market
+helm template ro helm/resell-orderbook -n market -f helm/resell-orderbook/values-prod.yaml
+```
+
+매칭 엔진 in-flight 처리 보호 (`terminationGracePeriodSeconds: 60` + preStop sleep + Spring
+graceful shutdown) 와 Saga REQUIRES_NEW 격리 가정은 raw manifests 와 동일합니다 — 자세한
+배경은 `values.yaml` 의 주석과 ADR-0027.
 
 ## 향후 개선 사항
 
