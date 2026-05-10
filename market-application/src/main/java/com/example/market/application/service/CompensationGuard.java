@@ -116,7 +116,18 @@ public class CompensationGuard {
             outcome = action.apply(null);
         } catch (RuntimeException e) {
             // action 안에서 예외 — fail 로 기록 후 그대로 throw (호출자가 도메인 의미로 처리).
-            store.fail(operation, businessKey, "EXCEPTION", e.getClass().getSimpleName(), clock.instant());
+            // store.fail 자체가 또 throw 할 수 있다 (REQUIRES_NEW 트랜잭션이라 DB 장애 시).
+            // 그 경우 원래 예외(e) 가 그대로 호출자에게 전달되도록 addSuppressed 로 묶고,
+            // fail 기록 실패는 별도로 로그만 남긴다. 그렇지 않으면 도메인 예외가 잠식되어
+            // 호출자가 잘못된 분기를 탄다.
+            try {
+                store.fail(operation, businessKey,
+                        "EXCEPTION", e.getClass().getSimpleName(), clock.instant());
+            } catch (RuntimeException failEx) {
+                e.addSuppressed(failEx);
+                log.warn("compensation_log fail 기록 실패 op={} key={} (원인 예외는 그대로 전파)",
+                        operation, businessKey, failEx);
+            }
             throw e;
         }
 

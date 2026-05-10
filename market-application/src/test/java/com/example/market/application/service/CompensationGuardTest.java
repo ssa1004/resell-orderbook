@@ -125,6 +125,35 @@ class CompensationGuardTest {
         assertThat(outcome.externalId()).isEqualTo("payout-1");
     }
 
+    @Test
+    void actionThrows_andFailRecordingAlsoThrows_originalExceptionPropagates() {
+        // store.fail 자체가 또 던지는 상황 — DB 장애로 별도 트랜잭션이 실패하는 시나리오.
+        // 원래의 도메인 예외 ("network error") 가 호출자에게 그대로 전달되어야 한다.
+        // 그렇지 않으면 REST controller advice 가 fail 기록 예외 ("DB down") 를 도메인
+        // 예외인 양 매핑해 잘못된 5xx/4xx 분기로 흘러간다.
+        CompensationLogStore failingStore = new CompensationLogStore() {
+            @Override public void begin(String op, String key, Instant now) {}
+            @Override public void complete(String op, String key, String code, String msg,
+                                           String externalId, Instant now) {}
+            @Override public void fail(String op, String key, String code, String msg, Instant now) {
+                throw new RuntimeException("DB down during fail logging");
+            }
+            @Override public Optional<Entry> find(String op, String key) { return Optional.empty(); }
+        };
+        var g = new CompensationGuard(failingStore, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        try {
+            g.runOnce(OP, KEY, prev -> { throw new RuntimeException("network error"); });
+        } catch (RuntimeException thrown) {
+            assertThat(thrown).hasMessage("network error");
+            // 보조 정보로 fail 실패가 suppressed 에 함께 노출 — 운영 로그에서 두 원인 모두 추적 가능.
+            assertThat(thrown.getSuppressed())
+                    .anySatisfy(s -> assertThat(s).hasMessage("DB down during fail logging"));
+            return;
+        }
+        org.assertj.core.api.Assertions.fail("expected RuntimeException to propagate");
+    }
+
     /** in-memory store. JpaCompensationLogStore 는 별도 IT 에서 검증. */
     static final class InMemoryCompensationLogStore implements CompensationLogStore {
         private final Map<String, Entry> rows = new ConcurrentHashMap<>();
