@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import kotlin.jvm.optionals.getOrNull
 import org.springframework.http.ResponseEntity
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
@@ -109,7 +110,7 @@ class MarketDataController(
                         occurredAt = it.occurredAt().toString(),
                     )
                 },
-                nextCursor = page.nextCursor().map { it.token() }.orElse(null),
+                nextCursor = page.nextCursor().getOrNull()?.token(),
             )
         )
     }

@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import kotlin.jvm.optionals.getOrNull
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -94,7 +95,7 @@ class TradeLifecycleController(
         val page = tradeHistory.historyOf(caller.userId(), Cursor.of(cursor ?: ""), limit)
         return CursorPageResponse(
             items = page.items().map { TradeResponse.from(it) },
-            nextCursor = page.nextCursor().map { it.token() }.orElse(null),
+            nextCursor = page.nextCursor().getOrNull()?.token(),
         )
     }
 }

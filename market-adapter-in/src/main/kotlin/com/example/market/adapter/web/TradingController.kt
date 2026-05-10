@@ -28,6 +28,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import kotlin.jvm.optionals.getOrNull
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -72,7 +73,7 @@ class TradingController(
         val result = placeListing.place(req.toCommand(idempotencyKey, caller.userId()))
         val body = PlaceListingResponse(
             listingId = result.listingId().toString(),
-            matchedTradeId = result.matchedTradeId().map { it.toString() }.orElse(null),
+            matchedTradeId = result.matchedTradeId().getOrNull()?.toString(),
         )
         return ResponseEntity.created(URI.create("/api/v1/listings/${result.listingId()}")).body(body)
     }
@@ -102,7 +103,7 @@ class TradingController(
         val result = placeBid.place(req.toCommand(idempotencyKey, caller.userId()))
         val body = PlaceBidResponse(
             bidId = result.bidId().toString(),
-            matchedTradeId = result.matchedTradeId().map { it.toString() }.orElse(null),
+            matchedTradeId = result.matchedTradeId().getOrNull()?.toString(),
         )
         return ResponseEntity.created(URI.create("/api/v1/bids/${result.bidId()}")).body(body)
     }

@@ -16,6 +16,7 @@ import jakarta.validation.constraints.Size
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.Currency
+import kotlin.jvm.optionals.getOrNull
 
 // ── Listing ───────────────────────────────
 
@@ -107,8 +108,8 @@ data class OrderBookView(
     companion object {
         fun from(v: OrderBookQueryUseCase.OrderBookView): OrderBookView = OrderBookView(
             skuId = v.skuId().toString(),
-            lowestAsk = v.lowestAsk().map { it.amount().toLong() }.orElse(null),
-            highestBid = v.highestBid().map { it.amount().toLong() }.orElse(null),
+            lowestAsk = v.lowestAsk().getOrNull()?.amount()?.toLong(),
+            highestBid = v.highestBid().getOrNull()?.amount()?.toLong(),
             asks = v.asks().map { PriceLevel(it.price().amount().toLong(), it.count()) },
             bids = v.bids().map { PriceLevel(it.price().amount().toLong(), it.count()) },
         )
