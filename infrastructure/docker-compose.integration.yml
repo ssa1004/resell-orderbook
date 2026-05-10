@@ -1,0 +1,142 @@
+# Cross-repo 통합 시연용 compose.
+#
+# - resell-orderbook (본 저장소) 본체 + Postgres / Redis / Kafka / wiremock(외부 PG 모사)
+# - auth-stub: auth-service 의 JWK Set 노출만 모사 (정적 nginx)
+# - notification-hub-stub: notification-hub 가 구독할 토픽 (market.tradematched / paymentauthorized
+#                          / inspectionpassed / inspectionfailed / tradecompleted / refundingstarted)
+#                          을 stdout 으로 echo 하는 console consumer
+#
+# 운영 구성이 아닙니다. 8 레포를 모두 띄우지 않고 cross-repo 흐름만 닫아 시연하기 위한 stub 묶음.
+# 본 앱은 dev 프로파일 + JWT off 로 동작 — 시연 스크립트가 mock JWT 와 X-User-Id 헤더로
+# 사용자를 시뮬레이션. auth-stub 의 JWK Set 은 같은 계약을 충족함을 보여주는 정적 노출.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: market
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: market
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  kafka:
+    image: apache/kafka:3.8.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # 단일 브로커 설정 — default replication factor 3 이면 __consumer_offsets 등 내부
+      # 토픽 생성이 막힌다.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Dockerfile 빌드 — file sharing 제약 회피 (mappings 를 image 에 직접 굽기).
+  wiremock:
+    build:
+      context: ./wiremock
+    # --disable-http2-plain — Java HttpClient (RestPgClient) 가 cleartext h2 negotiation
+    # 시 RST_STREAM 받는 문제 회피. HTTP/1.1 만 강제.
+    command: ["--disable-http2-plain"]
+
+  resell-orderbook:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_NAME: market
+      DB_USER: market
+      DB_PASSWORD: market
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP: kafka:9092
+      PG_BASE_URL: http://wiremock:8080
+      # 시연 한정: auth-stub 의 JWK Set 위치. 본 앱이 실제 JWT 검증을 활성화할 때
+      # spring.security.oauth2.resourceserver.jwt.jwk-set-uri 로 매핑되는 값.
+      # 본 시연은 JWT 비활성 + X-User-Id 헤더로 사용자를 시뮬레이션 (계약만 노출).
+      AUTH_JWKS_URI: http://auth-stub:8080/.well-known/jwks.json
+      # OAuth2 Resource Server 자동 설정은 issuer-uri placeholder 만 resolve 되면 충분 —
+      # MARKET_SECURITY_JWT_ENABLED=false 면 SecurityFilterChain 자체가 PermissiveSecurityConfig.
+      OAUTH_ISSUER_URI: http://auth-stub:8080
+      # 시연은 평문 mock JWT + X-User-Id 시뮬레이션 — 실 서명 검증 off.
+      MARKET_SECURITY_JWT_ENABLED: "false"
+      # PG 는 wiremock 으로 — 실 외부 호출 (RestPgClient).
+      MARKET_PG_ENABLED: "true"
+      # 은행/스토리지는 본 시연 범위 밖 — Mock 으로 둠.
+      MARKET_BANK_ENABLED: "false"
+      MARKET_STORAGE_S3_ENABLED: "false"
+      # advisory lock 은 Postgres 에서 동작.
+      MARKET_ADVISORY_LOCK_ENABLED: "true"
+      # Dockerfile 의 JAVA_TOOL_OPTIONS 에 있는 -XshowSettings:vm 가 일부 JRE 빌드에서
+      # JAVA_TOOL_OPTIONS 로 받을 수 없어서 통합 환경에서는 ZGC 만 남긴다.
+      JAVA_TOOL_OPTIONS: "-XX:+UseZGC -XX:+ZGenerational"
+    # 호스트 8081 — 같은 머신에서 다른 포폴 레포의 8080 점유와 충돌 회피.
+    ports: ["8081:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+      wiremock: { condition: service_started }
+      auth-stub: { condition: service_started }
+
+  # auth-service stub — JWK Set 만 정적으로 서비스. 실제 토큰 발급은 demo 스크립트가
+  # 평문 mock JWT (서명 검증 없는 형태) 로 시뮬레이션.
+  # Docker Desktop file sharing 제약으로 host bind 가 /Applications/* 에 막혀 있어
+  # Dockerfile 로 image 를 굽는다 (정적 nginx 응답이라 빌드 시간은 짧음).
+  auth-stub:
+    build:
+      context: ./integration/auth-stub
+    # 호스트 8087 — 같은 머신에서 다른 포폴 레포의 auth-stub 와의 포트 충돌 회피.
+    ports: ["8087:8080"]
+
+  # notification-hub stub — 본 앱이 발행하는 거래 라이프사이클 토픽들을 stdout 으로 echo.
+  # 실제 notification-hub 는 이 토픽들을 구독해 사용자에게 이메일/푸시/SMS 발송.
+  notification-hub-stub:
+    image: apache/kafka:3.8.0
+    depends_on:
+      kafka: { condition: service_healthy }
+    user: "0"
+    entrypoint:
+      - bash
+      - -c
+      - |
+        # 토픽이 아직 없을 수 있으므로 우선 생성 (idempotent).
+        for t in market.tradematched market.paymentauthorized market.paymentrejected \
+                 market.inspectionpassed market.inspectionfailed \
+                 market.tradecompleted market.refundingstarted; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+            --create --if-not-exists --topic "$$t" \
+            --partitions 1 --replication-factor 1
+        done
+        echo "[notification-hub-stub] subscribing to trade lifecycle topics"
+        /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 \
+          --include 'market\.(tradematched|paymentauthorized|paymentrejected|inspectionpassed|inspectionfailed|tradecompleted|refundingstarted)' \
+          --from-beginning \
+          --property print.key=true \
+          --property print.timestamp=true \
+          --property print.partition=true
