@@ -1,0 +1,33 @@
+{{ .Chart.Name }} v{{ .Chart.AppVersion }} 가 namespace "{{ .Release.Namespace }}" 에 설치되었습니다.
+
+릴리스 이름: {{ .Release.Name }}
+이미지: {{ include "resell-orderbook.image" . }}
+프로필: {{ .Values.springProfile }}
+복제본: {{ if .Values.autoscaling.enabled }}HPA {{ .Values.autoscaling.minReplicas }}~{{ .Values.autoscaling.maxReplicas }}{{ else }}{{ .Values.replicaCount }}{{ end }}
+
+상태 확인:
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "resell-orderbook.fullname" . }}
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+{{- if .Values.ingress.enabled }}
+
+외부 endpoint:
+{{- range .Values.ingress.hosts }}
+  https://{{ .host }}
+{{- range .paths }}
+    {{ .path }}
+{{- end }}
+{{- end }}
+{{- else }}
+
+ClusterIP service:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "resell-orderbook.fullname" . }} 8080:{{ .Values.service.port }}
+  open http://localhost:8080/actuator/health
+{{- end }}
+
+{{- if .Values.wiremock.enabled }}
+
+Wiremock (외부 PG mock) 도 함께 떠 있습니다:
+  http://wiremock.{{ .Release.Namespace }}.svc.cluster.local:8080
+  externalPg.baseUrl 는 위를 가리키도록 ConfigMap 에 주입되었습니다.
+{{- end }}

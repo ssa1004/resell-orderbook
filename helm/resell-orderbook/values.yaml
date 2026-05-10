@@ -1,0 +1,234 @@
+# resell-orderbook 기본 values. 운영 오버라이드는 values-prod.yaml 참고.
+# 기본은 dev/local-cluster 상정 — replicas 1, ingress off, NetworkPolicy off, wiremock on.
+
+# ----------------------------------------------------------------------------
+# 이미지
+# ----------------------------------------------------------------------------
+image:
+  repository: ghcr.io/ssa1004/resell-orderbook
+  # tag 가 비면 .Chart.AppVersion 사용
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# ----------------------------------------------------------------------------
+# 워크로드
+# ----------------------------------------------------------------------------
+replicaCount: 1
+
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# Spring 프로필. dev 에서는 H2 + Mock PG, prod 에서는 PG/Redis/Kafka 실제 사용.
+springProfile: dev
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+# ----------------------------------------------------------------------------
+# Graceful shutdown
+# ----------------------------------------------------------------------------
+# 매칭 엔진은 SKU 단위 advisory lock + SKIP LOCKED 로 직렬화 — pod 가 SIGTERM 을 받았을 때
+# 진행 중인 매칭 트랜잭션이 끊기면 행 잠금이 풀리며 다음 트랜잭션이 같은 BID 를 다시 잡는다.
+# 데이터 손상은 없지만 in-flight 매칭은 ABORT 후 재시도가 된다. 거래 라이프사이클 Saga 는
+# REQUIRES_NEW 로 격리돼 있어 한 step 의 트랜잭션을 중간에 자르지만 않으면 Outbox 가 다음
+# 전이를 안전하게 잇는다.
+#
+# 따라서 종료 절차는:
+#   1) preStop sleep 으로 endpoint propagation 완료 대기 (~10s) — 새 요청이 들어오지 않게.
+#   2) Spring Boot graceful shutdown 으로 서블릿 / Kafka 컨슈머 / 매칭 트랜잭션 정리 (~30~45s).
+#   3) terminationGracePeriodSeconds 60s 안에 끝나지 않으면 SIGKILL.
+# preStop 10s + Spring shutdown 여유 = 60s. 매칭이 10s 이상 걸리는 것은 advisory lock 경합
+# 외에는 비정상이므로 60s 면 in-flight 손실 없이 끝난다. 부족하면 이 값을 90s 로 올린다.
+terminationGracePeriodSeconds: 60
+preStopSleepSeconds: 10
+
+# ----------------------------------------------------------------------------
+# Probes
+# ----------------------------------------------------------------------------
+# Spring Boot cold start 가 길어 liveness 가 먼저 fail 하면서 무한 재시작에 빠지는 시나리오를
+# startup probe 로 차단. startup 이 성공한 뒤에야 liveness/readiness 가 동작.
+probes:
+  startup:
+    enabled: true
+    path: /actuator/health/liveness
+    failureThreshold: 30  # 30 × 2s = 60s 부팅 허용
+    periodSeconds: 2
+    timeoutSeconds: 3
+  liveness:
+    enabled: true
+    path: /actuator/health/liveness
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    enabled: true
+    path: /actuator/health/readiness
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 2
+
+# ----------------------------------------------------------------------------
+# Service / Pod 보안 컨텍스트
+# ----------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  name: ""
+  # AWS IRSA — IAM Role for ServiceAccount. EKS 외 환경에서는 비워둔다.
+  annotations: {}
+    # eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/resell-orderbook
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# ----------------------------------------------------------------------------
+# Service
+# ----------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+# Pod metric scrape 어노테이션 — Prometheus 가 직접 scrape 하는 환경 대비.
+# ServiceMonitor 를 쓰는 환경에서는 이 어노테이션이 무시돼도 무해.
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/actuator/prometheus"
+
+podLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# ----------------------------------------------------------------------------
+# Ingress
+# ----------------------------------------------------------------------------
+# 본 앱이 외부에 노출하는 path 군:
+#   /api/v1/orderbook/*  — 호가창 조회 (read)
+#   /api/v1/trades/*     — 거래 조회 / 검수 결과 등록 (write)
+#   /api/v1/admin/*      — 운영자용 (수수료 정책 / 만료 호가 정리 트리거)
+#   /webhooks/*          — 외부 PG 결제 결과 콜백
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: orderbook.example.com
+      paths:
+        - path: /api/v1/orderbook
+          pathType: Prefix
+        - path: /api/v1/trades
+          pathType: Prefix
+        - path: /api/v1/admin
+          pathType: Prefix
+        - path: /webhooks
+          pathType: Prefix
+  tls: []
+  # tls:
+  #   - secretName: orderbook-tls
+  #     hosts:
+  #       - orderbook.example.com
+
+# ----------------------------------------------------------------------------
+# Autoscaling
+# ----------------------------------------------------------------------------
+autoscaling:
+  enabled: false
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ----------------------------------------------------------------------------
+# PodDisruptionBudget
+# ----------------------------------------------------------------------------
+pdb:
+  enabled: false
+  minAvailable: 2
+  # maxUnavailable 는 minAvailable 와 상호배타. 둘 중 하나만 사용.
+
+# ----------------------------------------------------------------------------
+# NetworkPolicy
+# ----------------------------------------------------------------------------
+# 본 앱은 ingress controller / 같은 namespace 의 의존 (postgres/redis/kafka/wiremock) 만
+# 받으면 충분. 운영에서는 활성화 권장.
+networkPolicy:
+  enabled: false
+  # ingress controller 가 떠 있는 namespace 의 label
+  ingressNamespaceSelector:
+    kubernetes.io/metadata.name: ingress-nginx
+
+# ----------------------------------------------------------------------------
+# 외부 의존 — endpoint 만 주입. 실제 DB/Kafka 클러스터는 본 chart 가 띄우지 않는다.
+# ----------------------------------------------------------------------------
+postgres:
+  host: postgres.market.svc.cluster.local
+  port: 5432
+  database: market
+  user: market
+  # 운영에서는 existingSecret 사용. dev 는 평문 password 허용.
+  password: market
+  existingSecret: ""
+  existingSecretPasswordKey: password
+
+redis:
+  host: redis.market.svc.cluster.local
+  port: 6379
+
+kafka:
+  bootstrapServers: kafka.market.svc.cluster.local:9092
+
+# 외부 PG (결제대행사). 운영은 실제 endpoint, dev/staging 은 wiremock 으로 mock.
+externalPg:
+  baseUrl: http://wiremock.market.svc.cluster.local:8080
+  # PG 가 webhook 호출 시 함께 보내는 HMAC secret 검증 키.
+  webhookSecret: dev-webhook-secret
+  webhookSecretExistingSecret: ""
+  webhookSecretExistingSecretKey: webhook-secret
+
+# OAuth2 Resource Server — auth-service 의 JWK Set issuer.
+oauth:
+  issuerUri: http://auth-service.auth.svc.cluster.local:8080/realms/market
+
+# Wiremock (외부 PG 의 mock). dev/staging 에서만 함께 띄운다. 운영에서는 enabled: false.
+wiremock:
+  enabled: true
+  image:
+    repository: wiremock/wiremock
+    tag: "3.10.0"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits:   { cpu: 200m, memory: 256Mi }
+
+# 추가 환경 변수 (자유 주입). configMap 으로 들어간다.
+extraEnv: {}
+
+# 추가 envFrom (이미 클러스터에 존재하는 secret/configmap 을 재사용할 때).
+extraEnvFrom: []

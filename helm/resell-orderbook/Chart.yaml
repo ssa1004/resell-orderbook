@@ -1,0 +1,20 @@
+apiVersion: v2
+name: resell-orderbook
+description: 한정판 리셀 마켓 백엔드 (BID/ASK 매칭 엔진 + 거래 라이프사이클 Saga) 의 Helm chart
+type: application
+# 본 레포의 애플리케이션 버전과 chart 버전은 분리. appVersion 은 컨테이너 이미지 태그의
+# 기본값으로도 쓰이므로 image.tag 를 비우면 이 값이 채워진다.
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+keywords:
+  - resell
+  - orderbook
+  - matching-engine
+  - saga
+home: https://github.com/ssa1004/resell-orderbook
+sources:
+  - https://github.com/ssa1004/resell-orderbook
+maintainers:
+  - name: ssa1004
+    email: wittyahn@users.noreply.github.com

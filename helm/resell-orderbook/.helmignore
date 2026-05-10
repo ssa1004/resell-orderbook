@@ -1,0 +1,11 @@
+# Helm chart 패키징에서 제외할 파일.
+.DS_Store
+.git/
+.gitignore
+.idea/
+.vscode/
+*.tmproj
+*.swp
+*.bak
+*.tgz
+OWNERS
