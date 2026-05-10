@@ -13,8 +13,14 @@ public interface TradeRepository {
     void save(Trade trade);
     Optional<Trade> findById(TradeId id);
 
-    /** TTL 만료된 CREATED 거래 (Spring Batch 용). */
-    List<Trade> findStaleCreated(Instant cutoff);
+    /**
+     * TTL 만료된 CREATED 거래 (Spring Batch 용).
+     *
+     * <p>{@code limit} 은 한 batch 의 처리 hint — caller (AutoCancel job 등) 가 한 트랜잭션에서
+     * 처리하려는 수와 일치시켜야 fetch / lock 비용이 의도와 어긋나지 않는다. 이전엔 200 으로
+     * hard-coded 되어 있어 batch job 이 500 / 1000 으로 호출해도 200 만 처리되는 문제가 있었다.</p>
+     */
+    List<Trade> findStaleCreated(Instant cutoff, int limit);
 
     List<Trade> findByStatus(TradeStatus status, int limit);
 

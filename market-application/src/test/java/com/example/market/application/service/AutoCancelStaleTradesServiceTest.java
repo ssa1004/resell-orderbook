@@ -22,7 +22,10 @@ import java.util.Currency;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -53,7 +56,7 @@ class AutoCancelStaleTradesServiceTest {
     void cancelStale_setsAllStaleTradesToFailed() {
         Trade t1 = createdTrade();
         Trade t2 = createdTrade();
-        when(trades.findStaleCreated(any())).thenReturn(List.of(t1, t2));
+        when(trades.findStaleCreated(any(), anyInt())).thenReturn(List.of(t1, t2));
 
         int count = service.cancelStale(Duration.ofMinutes(15), 100);
 
@@ -65,11 +68,30 @@ class AutoCancelStaleTradesServiceTest {
 
     @Test
     void cancelStale_emptyResult_returnsZero() {
-        when(trades.findStaleCreated(any())).thenReturn(List.of());
+        when(trades.findStaleCreated(any(), anyInt())).thenReturn(List.of());
 
         int count = service.cancelStale(Duration.ofMinutes(15), 100);
 
         assertThat(count).isEqualTo(0);
+    }
+
+    @Test
+    void cancelStale_passesBatchSizeAsFetchLimit() {
+        // 회귀 테스트 — 이전엔 repository 가 200 row hard-coded fetch 였어서 caller 가 500 을
+        // 보내도 200 만 fetch 되었다. 지금은 batchSize 가 그대로 limit 으로 흘러야 한다.
+        when(trades.findStaleCreated(any(), eq(500))).thenReturn(List.of());
+
+        service.cancelStale(Duration.ofMinutes(15), 500);
+
+        verify(trades).findStaleCreated(any(), eq(500));
+    }
+
+    @Test
+    void cancelStale_rejectsNonPositiveBatchSize() {
+        assertThatThrownBy(() -> service.cancelStale(Duration.ofMinutes(15), 0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.cancelStale(Duration.ofMinutes(15), -1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     private Trade createdTrade() {

@@ -31,20 +31,25 @@ public class AutoCancelStaleTradesService implements AutoCancelStaleTradesUseCas
     @Override
     @Transactional
     public int cancelStale(Duration ttl, int batchSize) {
+        if (batchSize <= 0) throw new IllegalArgumentException("batchSize must be positive: " + batchSize);
         Instant now = clock.instant();
         Instant cutoff = now.minus(ttl);
-        List<Trade> stale = trades.findStaleCreated(cutoff);
+        // batchSize 만큼만 fetch — 이전엔 repository 가 200 hard-coded 였어서 caller 의 hint
+        // 가 무시됐다 (500/1000 호출해도 200 row 만 처리). 이제 호출자의 처리 단위와
+        // fetch 단위가 일치.
+        List<Trade> stale = trades.findStaleCreated(cutoff, batchSize);
         if (stale.isEmpty()) return 0;
 
         int cancelled = 0;
-        for (Trade trade : stale.subList(0, Math.min(stale.size(), batchSize))) {
+        for (Trade trade : stale) {
             if (trade.status() != TradeStatus.CREATED) continue; // safety
             var ev = trade.cancelOnPaymentFailure("PAYMENT_TTL_EXCEEDED", now);
             trades.save(trade);
             events.publish(ev);
             cancelled++;
         }
-        log.info("auto-cancelled {} stale trades (TTL={}min)", cancelled, ttl.toMinutes());
+        log.info("auto-cancelled {} stale trades (TTL={}min, batchSize={})",
+                cancelled, ttl.toMinutes(), batchSize);
         return cancelled;
     }
 }

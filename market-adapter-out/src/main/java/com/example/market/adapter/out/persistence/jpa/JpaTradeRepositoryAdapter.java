@@ -32,8 +32,9 @@ public class JpaTradeRepositoryAdapter implements TradeRepository {
     }
 
     @Override
-    public List<Trade> findStaleCreated(Instant cutoff) {
-        return jpa.findStaleCreated(cutoff, PageRequest.of(0, 200))
+    public List<Trade> findStaleCreated(Instant cutoff, int limit) {
+        // limit 을 그대로 전달 — 호출자의 batch 처리 단위와 fetch 단위를 일치시킨다.
+        return jpa.findStaleCreated(cutoff, PageRequest.of(0, limit))
                 .stream().map(TradeJpaMapper::toDomain).toList();
     }
 
