@@ -1,0 +1,51 @@
+{{- /*
+   외부 PG 의 mock. dev/staging 한정 — 같은 chart 안에서 함께 띄워 테스트 환경을 닫는다.
+   Service 이름을 단순 "wiremock" 으로 두는 이유: docker-compose 와 같은 hostname 으로
+   externalPg.baseUrl=http://wiremock:8080 처럼 단순하게 부를 수 있게 — 한 namespace 에서는
+   service 이름만으로 DNS 해소된다.
+*/ -}}
+{{- if .Values.wiremock.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "resell-orderbook.wiremock.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "resell-orderbook.wiremock.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "resell-orderbook.wiremock.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "resell-orderbook.wiremock.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: wiremock
+          image: "{{ .Values.wiremock.image.repository }}:{{ .Values.wiremock.image.tag }}"
+          imagePullPolicy: {{ .Values.wiremock.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            {{- toYaml .Values.wiremock.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wiremock
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "resell-orderbook.wiremock.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.wiremock.service.type }}
+  selector:
+    {{- include "resell-orderbook.wiremock.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.wiremock.service.port }}
+      targetPort: http
+      protocol: TCP
+{{- end -}}

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "resell-orderbook.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "resell-orderbook.labels" . | nindent 4 }}
+data:
+  SPRING_PROFILES_ACTIVE: {{ .Values.springProfile | quote }}
+  DB_HOST: {{ .Values.postgres.host | quote }}
+  DB_PORT: {{ .Values.postgres.port | quote }}
+  DB_NAME: {{ .Values.postgres.database | quote }}
+  DB_USER: {{ .Values.postgres.user | quote }}
+  REDIS_HOST: {{ .Values.redis.host | quote }}
+  REDIS_PORT: {{ .Values.redis.port | quote }}
+  KAFKA_BOOTSTRAP: {{ .Values.kafka.bootstrapServers | quote }}
+  PG_BASE_URL: {{ .Values.externalPg.baseUrl | quote }}
+  OAUTH_ISSUER_URI: {{ .Values.oauth.issuerUri | quote }}
+  {{- range $k, $v := .Values.extraEnv }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
