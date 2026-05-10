@@ -22,7 +22,7 @@ market:
     jwt:
       enabled: false
   advisory-lock:
-    enabled: false           # Postgres 지만 e2e 단순화 — 단일 thread
+    enabled: true            # prod 와 동일 경로로 매칭 검증 — pg_advisory_xact_lock + FOR UPDATE
   outbox:
     relay:
       enabled: false         # Kafka 비활성 — Outbox 만 INSERT 검증

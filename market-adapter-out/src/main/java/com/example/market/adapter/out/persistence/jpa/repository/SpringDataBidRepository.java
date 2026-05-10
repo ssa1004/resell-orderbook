@@ -13,11 +13,17 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public interface SpringDataBidRepository extends JpaRepository<BidJpaEntity, UUID> {
 
+    /**
+     * Highest BID 1건 — FOR UPDATE SKIP LOCKED. JPQL 에는 LIMIT 키워드가 없으므로 Pageable 로
+     * LIMIT 1 을 강제한다. 같은 SKU 의 ACTIVE BID 가 2개 이상일 때 단일 결과형 쿼리는 Spring
+     * Data JPA 가 NonUniqueResultException 으로 던져 매칭 자체가 차단된다 — caller 가
+     * {@code stream().findFirst()} 로 첫 행을 받는다.
+     * Hibernate 의 jakarta.persistence.lock.timeout = -2 → SKIP LOCKED.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2")})
     @Query("""
@@ -27,8 +33,8 @@ public interface SpringDataBidRepository extends JpaRepository<BidJpaEntity, UUI
               AND b.expiresAt > :now
             ORDER BY b.bidPrice DESC, b.createdAt ASC
             """)
-    Optional<BidJpaEntity> findHighestActiveForUpdate(
-            @Param("skuId") UUID skuId, @Param("now") Instant now);
+    List<BidJpaEntity> findHighestActiveForUpdate(
+            @Param("skuId") UUID skuId, @Param("now") Instant now, Pageable pageable);
 
     @Query("""
             SELECT b FROM BidJpaEntity b

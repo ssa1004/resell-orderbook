@@ -79,7 +79,10 @@ public class JpaOrderBookQueryAdapter implements OrderBookQueryPort {
             return bids.topNActive(skuId.value(), now, PageRequest.of(0, 1))
                     .stream().findFirst().map(BidJpaMapper::toDomain);
         }
-        return bids.findHighestActiveForUpdate(skuId.value(), now).map(BidJpaMapper::toDomain);
+        // FOR UPDATE 경로도 LIMIT 1 (Pageable) 로 강제 — JPQL 에 LIMIT 키워드가 없는데 이전엔
+        // Optional 반환만 두었어서 호가 2개 이상일 때 NonUniqueResultException 으로 매칭 차단됐다.
+        return bids.findHighestActiveForUpdate(skuId.value(), now, PageRequest.of(0, 1))
+                .stream().findFirst().map(BidJpaMapper::toDomain);
     }
 
     @Override
@@ -89,7 +92,8 @@ public class JpaOrderBookQueryAdapter implements OrderBookQueryPort {
             return listings.topNActive(skuId.value(), now, PageRequest.of(0, 1))
                     .stream().findFirst().map(ListingJpaMapper::toDomain);
         }
-        return listings.findLowestActiveForUpdate(skuId.value(), now).map(ListingJpaMapper::toDomain);
+        return listings.findLowestActiveForUpdate(skuId.value(), now, PageRequest.of(0, 1))
+                .stream().findFirst().map(ListingJpaMapper::toDomain);
     }
 
     @Override
