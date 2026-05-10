@@ -1,0 +1,70 @@
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "resell-orderbook.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "resell-orderbook.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "resell-orderbook.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # ingress controller namespace 에서 오는 트래픽 허용 (외부 → 본 앱 8080).
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.ingressNamespaceSelector | nindent 14 }}
+      ports:
+        - port: 8080
+          protocol: TCP
+    # 같은 namespace 내부 (예: prometheus operator 의 ServiceMonitor) 에서 metrics scrape.
+    - from:
+        - namespaceSelector: {}
+      ports:
+        - port: 8080
+          protocol: TCP
+  egress:
+    # DNS — kube-dns / coredns 는 kube-system.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Postgres / Redis / Kafka / Wiremock — 같은 namespace 의 backing service 라고 가정.
+    # 다른 namespace 면 namespaceSelector 를 적절히 추가한다.
+    - to:
+        - podSelector: {}
+      ports:
+        - port: {{ .Values.postgres.port }}
+          protocol: TCP
+        - port: {{ .Values.redis.port }}
+          protocol: TCP
+        - port: 9092
+          protocol: TCP
+        - port: 8080
+          protocol: TCP
+    # 외부 PG / OAuth issuer — HTTPS 아웃바운드. except 로 클러스터 내부 CIDR 만 막아도
+    # 충분하지만, 운영 cluster 마다 CIDR 가 달라 단순히 443 을 허용한다. 더 엄격히 하려면
+    # cilium 의 FQDN policy 등 별도 메커니즘.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+{{- end -}}
