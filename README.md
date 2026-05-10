@@ -228,3 +228,104 @@ trade.ifPresentOrElse(t -> {
 - Elasticsearch 기반 상품 검색
 - 검수 사진 ML 기반 가품 탐지
 - 운영자 대시보드 (검수 큐, 정산 현황)
+
+## Portfolio Set 통합
+
+이 레포는 단독으로도 동작하지만, 같은 사용자가 운영하는 8개 백엔드 레포가 한 시스템처럼
+맞물리는 구성의 일부입니다. 프로필 README:
+<https://github.com/ssa1004/ssa1004>.
+
+### 8 레포 한눈 표
+
+| 레포 | 역할 | 본 레포 (resell-orderbook) 와의 관계 |
+|---|---|---|
+| `auth-service` | 사용자 인증 + JWT 발급 | 본 레포가 JWK Set 으로 들어오는 JWT 를 검증 |
+| `security-log-search` | 보안 로그 수집/검색 | 본 레포의 인증 실패 / 권한 위반 로그를 인덱싱 (선택) |
+| `notification-hub` | 다채널 알림 (이메일/푸시/SMS) | 본 레포의 거래/결제/검수 이벤트를 구독해 발송 |
+| `search-service` | 상품 검색 | 본 레포의 상품/체결가 데이터를 색인 (선택) |
+| `billing-platform` | 사용량 과금 | 본 레포의 거래 수수료를 usage 로 전송 (선택) |
+| **`resell-orderbook`** | **본 레포 — 한정판 리셀 마켓 백엔드** | — |
+| `gpu-job-orchestrator` | GPU job 스케줄러 | 검수 사진 ML 가품 탐지 워커 (향후) |
+| `mini-shop-observability` | 관측 스택 (Prometheus/Grafana/Tempo/Loki) | 본 레포의 metrics/trace/log 수집 |
+
+### 들어오는 / 나가는 통합점
+
+- **들어오는** — `auth-service` 가 발급한 JWT (Bearer) 로 호가 등록 / 거래 / 검수 endpoint 호출.
+  PG 결제 결과는 wiremock 으로 도는 외부 PG 를 통해 도착.
+- **나가는** — 거래 라이프사이클의 각 상태 전이가 outbox 를 거쳐 Kafka 로 발행되고,
+  `notification-hub` 가 토픽 (`market.tradematched`, `market.paymentauthorized`,
+  `market.inspectionpassed`, `market.inspectionfailed`, `market.tradecompleted`,
+  `market.refundingstarted`) 을 구독해 사용자에게 알림.
+
+### 사용자 라이프사이클 sequence
+
+호가 등록부터 정산까지의 한 사이클과, 각 단계에서 발행되는 이벤트입니다.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant Auth as auth-service
+    participant API as resell-orderbook
+    participant K as Kafka
+    participant PG as 외부 PG
+    participant Notif as notification-hub
+
+    U->>Auth: 로그인 (id/pw)
+    Auth-->>U: JWT (Bearer)
+
+    U->>API: POST /api/v1/bids (Bearer JWT)
+    API->>API: JWT 검증 (auth-service JWK Set)
+    API->>API: BID 저장 + Outbox INSERT
+    API-->>K: market.bidplaced
+
+    U->>API: POST /api/v1/listings (Bearer JWT)
+    API->>API: 매칭 → Trade INSERT + Outbox INSERT
+    API-->>K: market.tradematched
+    K->>Notif: trade.matched consume → 양측에 매칭 알림
+
+    K->>API: AuthorizePayment 컨슈머
+    API->>PG: PG.authorize (CB 보호)
+    PG-->>API: 승인
+    API-->>K: market.paymentauthorized
+    K->>Notif: payment.authorized consume → 결제 완료 알림
+
+    Note over API: 셀러 발송 → 검수센터 도착
+    U->>API: POST /api/v1/inspection-requests/{id}/result (PASS)
+    API-->>K: market.inspectionpassed
+    K->>Notif: inspection.passed consume
+
+    Note over API: 구매자 수령 → COMPLETED
+    API-->>K: market.tradecompleted
+    K->>API: Settle 컨슈머 → 셀러 정산
+    K->>Notif: trade.completed consume → 정산 완료 알림
+
+    alt 검수 실패
+        U->>API: result (FAIL)
+        API-->>K: market.inspectionfailed → market.refundingstarted
+        K->>Notif: refund.requested consume → 환불 안내
+    end
+```
+
+### 통합 시연 — 외부 의존을 mock 으로 닫고 한 머신에서 한 사이클
+
+```bash
+# 1. 통합 환경 기동 (postgres + redis + kafka + auth stub + notification stub + wiremock + 본 앱)
+docker compose -p resell-integration -f infrastructure/docker-compose.integration.yml up -d --build
+
+# 2. mock JWT 발급 → bid/ask 매칭 → 결제 → 검수 → 정산까지 자동 진행
+./scripts/integration-demo.sh
+
+# 3. notification-hub stub 이 받은 이벤트 확인
+docker compose -p resell-integration -f infrastructure/docker-compose.integration.yml logs notification-hub-stub | tail -30
+
+# 4. 정리
+docker compose -p resell-integration -f infrastructure/docker-compose.integration.yml down -v
+```
+
+`-p` 로 compose 프로젝트 이름을 명시 — 같은 머신에서 다른 포폴 레포의 compose 와 동시에
+띄울 때 이름 / 포트 충돌을 피한다 (본 앱: `8081`, auth-stub: `8087`).
+
+`auth-service` 와 `notification-hub` 의 실제 레포 대신 같은 계약을 충족하는 stub 을 사용합니다 —
+각 레포가 같은 JWK Set 형식과 같은 Kafka 토픽 이름을 공유하므로, 운영에서는 stub 자리를
+실제 서비스로 바꾸기만 하면 됩니다.
