@@ -10,7 +10,7 @@
 ## 기술 스택
 
 - **Language**: Java 21, Kotlin (adapter-in 모듈)
-- **Framework**: Spring Boot 3.4.1, Spring Modulith, Spring Batch
+- **Framework**: Spring Boot 3.4.5, Spring Modulith, Spring Batch
 - **Database**: PostgreSQL 16, Redis
 - **Messaging**: Apache Kafka
 - **Security**: Spring Security (OAuth2 Resource Server, JWT)
