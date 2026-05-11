@@ -4,11 +4,11 @@
 적용
 
 ## 배경
-도메인 이벤트 (TradeMatched, InspectionPassed 등) 를 Kafka 로 발행할 때, *DB 트랜잭션과
-함께 성공하거나 함께 실패해야* 한다. 그렇지 않으면 다음 두 문제가 생긴다.
+도메인 이벤트 (TradeMatched, InspectionPassed 등) 를 Kafka 로 발행할 때, DB 트랜잭션과
+함께 성공하거나 함께 실패해야 한다. 그렇지 않으면 다음 두 문제가 생긴다.
 
-- DB 커밋 성공 → Kafka 발행 실패 → 이벤트 *유실*
-- Kafka 발행 성공 → DB 커밋 실패 → *유령 이벤트* (DB 에는 없는 일이 이벤트로만 나가버림)
+- DB 커밋 성공 → Kafka 발행 실패 → 이벤트 유실
+- Kafka 발행 성공 → DB 커밋 실패 → 유령 이벤트 (DB 에는 없는 일이 이벤트로만 나가버림)
 
 ## 결정
 **Outbox 테이블 (보낼 이벤트를 잠시 저장해두는 테이블) + 별도 Relay (그 테이블을 읽어 실제로
@@ -27,7 +27,7 @@
   Kafka 실패 → markPublished 안 함 → 다음 폴링에서 자동 재시도
 ```
 
-1. `EventPublisher.publish()` 가 *같은 트랜잭션* 의 outbox 테이블에 INSERT — 도메인 변경과
+1. `EventPublisher.publish()` 가 같은 트랜잭션의 outbox 테이블에 INSERT — 도메인 변경과
    이벤트 저장이 한 번에 commit/rollback. Kafka 호출은 트랜잭션 안에서 하지 않는다 (트랜잭션
    안에서 외부 시스템 호출하면 commit 직전에 PG 가 다운되는 등의 race 가 위에서 말한 유실/유령
    문제를 다시 만들어냄).

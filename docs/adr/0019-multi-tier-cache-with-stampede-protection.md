@@ -5,12 +5,12 @@
 
 ## 배경
 
-`MarketDataQueryService.currentStats(skuId)` 는 한 SKU 의 *현재 시세 카드* 를 조회하는
-read-only 쿼리. 응답은 *최근 체결가 + best bid/ask + 24h 통계* 를 한 번에 묶어 클라이언트가
+`MarketDataQueryService.currentStats(skuId)` 는 한 SKU 의 현재 시세 카드를 조회하는
+read-only 쿼리. 응답은 최근 체결가 + best bid/ask + 24h 통계를 한 번에 묶어 클라이언트가
 추가 round-trip 없이 받는다. 사용자 화면의 호가창 / 가격 카드 / 차트 모두 같은 endpoint 를
-폴링하므로 *hot SKU 의 반복 조회* 가 매우 잦다.
+폴링하므로 hot SKU 의 반복 조회가 매우 잦다.
 
-내부적으로는 *24시간 aggregation* (COUNT/MIN/AVG/MAX) 를 매 호출마다 DB 에서 다시 계산. 같은
+내부적으로는 24시간 aggregation (COUNT/MIN/AVG/MAX) 를 매 호출마다 DB 에서 다시 계산. 같은
 SKU 에 대해 1초에 100번 호출이 들어오면 Postgres 가 같은 결과를 100번 만든다. 트래픽이 늘면
 이 부담이 그대로 DB 의 CPU 로 전이.
 
@@ -37,7 +37,7 @@ get(sku):
   loader 호출 (실제 DB) → L1, L2 모두 채우고 반환
 ```
 
-L1 TTL 이 짧은 이유: cross-pod 데이터 불일치를 *인스턴스 한 대가 1초까지 늦게 본다* 정도로 한정.
+L1 TTL 이 짧은 이유: cross-pod 데이터 불일치를 인스턴스 한 대가 1초까지 늦게 본다 정도로 한정.
 거래 체결로 시세가 바뀌어도 1초 안에는 모든 인스턴스가 반영. L2 TTL 이 길수록 DB 부하는 줄지만
 "신선하지 않은 응답을 보는 시간" 도 늘어 — 이 트레이드오프의 균형점을 1초/10초로 잡았다.
 
@@ -45,7 +45,7 @@ L1 TTL 이 짧은 이유: cross-pod 데이터 불일치를 *인스턴스 한 대
 
 **(1) Probabilistic early refresh (XFetch)**
 
-TTL 만료 직전이 아니라 그 *전에* 확률적으로 갱신을 시도. entry 별로:
+TTL 만료 직전이 아니라 그 전에 확률적으로 갱신을 시도. entry 별로:
 
 ```
 shouldRefreshEarly(now):
@@ -55,8 +55,8 @@ shouldRefreshEarly(now):
 ```
 
 `computeMs` 가 클수록 (= 무거운 쿼리) 더 일찍 시도, `rand` 의 흩뿌림 덕에 동시에 여러 thread 가
-같은 ms 에 만료를 트리거하지 않는다. 출처는 *"Optimal Probabilistic Cache Stampede Prevention"
-(VLDB 2015)*. beta = 1.0 이 표준값.
+같은 ms 에 만료를 트리거하지 않는다. 출처는 "Optimal Probabilistic Cache Stampede Prevention"
+(VLDB 2015). beta = 1.0 이 표준값.
 
 **(2) SETNX recompute lock**
 
@@ -83,7 +83,7 @@ Redis 가 다운되면 limiter 와 같은 정책으로 **fail-open**:
 - L2 write 실패 → loader 결과 반환 + L1 만 채움 (운영 모니터링 alert)
 - lock 시도 실패 → loader 직접 호출 (캐시 효과 일시 상실 + DB 부담 일시 증가)
 
-가용성 우선. 캐시는 *최적화 layer* 이지 정확성에 필요한 layer 가 아니다.
+가용성 우선. 캐시는 최적화 layer 이지 정확성에 필요한 layer 가 아니다.
 
 ### 구현 매개변수 (application.yml)
 
@@ -129,9 +129,9 @@ market.cache.market-stats.loader-retry-attempts: 3
 
 ## 후속 후보
 
-- *적용 endpoint 확장* — 인기 검색어, 상품 카드 (catalog) 등에 같은 패턴 적용 가능.
-- *cache hit ratio 메트릭* — Caffeine 의 stats 와 Redis 의 hit/miss 카운터를 Prometheus 로 노출.
-- *write-through* — TradeMatched 같은 강한 trigger 가 있는 path 는 캐시 entry 를 미리 갱신해
+- 적용 endpoint 확장 — 인기 검색어, 상품 카드 (catalog) 등에 같은 패턴 적용 가능.
+- cache hit ratio 메트릭 — Caffeine 의 stats 와 Redis 의 hit/miss 카운터를 Prometheus 로 노출.
+- write-through — TradeMatched 같은 강한 trigger 가 있는 path 는 캐시 entry 를 미리 갱신해
   사용자 응답 즉시 반영 (현재는 invalidate 만).
-- *Refresh-ahead 를 별도 worker 로* — 인기 top-K SKU 의 캐시를 background scheduler 가 미리
+- Refresh-ahead 를 별도 worker 로 — 인기 top-K SKU 의 캐시를 background scheduler 가 미리
   refresh — 사용자 호출이 항상 hit.

@@ -5,20 +5,20 @@
 
 ## 배경
 
-`PriceTick` (체결 1건 시점의 가격) 은 매칭이 일어날 때마다 1행씩 INSERT 만 되는 *append-only*
+`PriceTick` (체결 1건 시점의 가격) 은 매칭이 일어날 때마다 1행씩 INSERT 만 되는 append-only
 시계열 데이터다. 가격 차트, 24시간 통계, OHLC 캔들스틱이 모두 이 테이블에서 파생된다.
 따라서 자주 일어나는 read query 두 가지가 있다:
 
-1. *최근 N건* (last trade, 차트 right-edge): `ORDER BY occurred_at DESC LIMIT N`
-2. *cursor pagination* (무한 스크롤, 실시간 차트 follow-up): "이전 페이지의 마지막 다음부터 N건"
+1. 최근 N건 (last trade, 차트 right-edge): `ORDER BY occurred_at DESC LIMIT N`
+2. cursor pagination (무한 스크롤, 실시간 차트 follow-up): "이전 페이지의 마지막 다음부터 N건"
 
 기존 PK 는 `UUID` 였다. 다음과 같은 약점:
 
-- *무작위* — 인덱스 page 가 어디로 갈지 모르므로 매 INSERT 마다 random page 에 흩뿌려 쓴다
+- 무작위 — 인덱스 page 가 어디로 갈지 모르므로 매 INSERT 마다 random page 에 흩뿌려 쓴다
   (write amplification). buffer pool / OS page cache 에 hit 률이 떨어진다.
-- *시간 비교 불가* — UUID 두 개를 비교해 시간 순서를 알 수 없다. cursor pagination 을 하려면
+- 시간 비교 불가 — UUID 두 개를 비교해 시간 순서를 알 수 없다. cursor pagination 을 하려면
   `(occurred_at, id)` 튜플 비교가 필요한데 등호 처리 / NULL 처리가 까다롭다.
-- *16 byte* — 8 byte (long) 의 두 배. 인덱스 메모리도 두 배.
+- 16 byte — 8 byte (long) 의 두 배. 인덱스 메모리도 두 배.
 
 본 ADR 은 PriceTick 의 ID 를 **Snowflake** 형식의 64bit `long` 으로 바꾼다 (Twitter 가
 2010년 공개한 분산 ID 발급 알고리즘 — 시간 정렬 가능한 long ID 가 필요한 시계열/메시지
@@ -37,7 +37,7 @@
 - 10bit machine id: 인스턴스(=K8s pod) 별 고유 — 최대 1024 인스턴스
 - 12bit sequence: 같은 ms 안의 1씩 증가 — 인스턴스 한 대 당 1ms 에 4096 ID
 
-이 배치 덕에 `id` 만 long 으로 비교해도 *시간 순* (생성 시각이 같으면 인스턴스 + 순서 순). UUID
+이 배치 덕에 `id` 만 long 으로 비교해도 시간 순 (생성 시각이 같으면 인스턴스 + 순서 순). UUID
 의 결정적 약점이 모두 해결된다.
 
 ### Machine id 결정
@@ -55,12 +55,12 @@ ZooKeeper / Redis 의 분산 카운터를 받아 env 로 주입.
 
 ### Clock backward 방어
 
-NTP 동기화로 시계가 살짝 뒤로 가는 일은 흔하다. 만약 그 사이에 새 ID 를 발급하면 *과거 ID 와
-충돌* 위험. 두 단계 방어:
+NTP 동기화로 시계가 살짝 뒤로 가는 일은 흔하다. 만약 그 사이에 새 ID 를 발급하면 과거 ID 와
+충돌 위험. 두 단계 방어:
 
-1. *작은 backward (≤10초)*: `lastTimestamp` 를 그대로 유지하면서 sequence 만 증가시켜
+1. 작은 backward (≤10초): `lastTimestamp` 를 그대로 유지하면서 sequence 만 증가시켜
    단조 증가를 유지. 시계가 곧 따라잡으면 자연 복귀.
-2. *큰 backward (>10초)*: 인프라 문제 (NTP 망가짐 등) — 즉시 `IllegalStateException`
+2. 큰 backward (>10초): 인프라 문제 (NTP 망가짐 등) — 즉시 `IllegalStateException`
    으로 빠른 실패. silent corruption 보다 fail-fast 가 낫다.
 
 ### DB 마이그레이션 (V6)
@@ -76,13 +76,13 @@ ALTER TABLE price_ticks ADD CONSTRAINT price_ticks_pkey PRIMARY KEY (id);
 CREATE INDEX idx_price_tick_sku_id ON price_ticks (sku_id, id);
 ```
 
-기존 행을 *삭제* 하는 destructive migration 이지만 본 시스템에서 받아들일 수 있는 이유:
+기존 행을 삭제하는 destructive migration 이지만 본 시스템에서 받아들일 수 있는 이유:
 
-- price_ticks 는 `trades` 테이블에서 *재생성 가능* — 거래 1건 당 정확히 tick 1건이라
+- price_ticks 는 `trades` 테이블에서 재생성 가능 — 거래 1건 당 정확히 tick 1건이라
   운영 SQL 한 줄로 backfill 가능
 - 시스템이 아직 운영 데이터 적재 전 단계 (이 시점까지의 ADR 들이 전부 demo 수준)
 
-운영 데이터가 큰 시스템이라면 *추가 컬럼* 전략 (id_seq BIGINT 추가 → backfill →
+운영 데이터가 큰 시스템이라면 추가 컬럼 전략 (id_seq BIGINT 추가 → backfill →
 점진 cutover → 옛 PK 제거) 이 안전.
 
 ### Cursor pagination 새 인덱스
@@ -98,7 +98,7 @@ CREATE INDEX idx_price_tick_sku_id ON price_ticks (sku_id, id);
 ## 대안 검토
 
 - **UUID v7** (timestamp-prefixed UUID) — 시간 순 정렬은 가능하지만 여전히 16 byte. snowflake
-  대비 인덱스 크기 2배. 주된 장점은 *전역 유일성* 인데, 본 시스템은 단일 클러스터라 그게 큰 이점이
+  대비 인덱스 크기 2배. 주된 장점은 전역 유일성인데, 본 시스템은 단일 클러스터라 그게 큰 이점이
   아니다.
 - **DB sequence** (`BIGSERIAL`) — Postgres native 이지만 1) 시간 정보 없음 (모니터링 / 디버깅에서
   ID 만 보고 발급 시각을 알 수 없음) 2) 분산 환경에서는 sequence 의 RTT 가 INSERT 마다 일어나
@@ -115,7 +115,7 @@ CREATE INDEX idx_price_tick_sku_id ON price_ticks (sku_id, id);
 - (장) `id` 만으로 발급 시각 + 발급 인스턴스 디코딩 → 모니터링 / 로그 분석에 유용
 - (단) 단일 인스턴스 PK 형태의 DB sequence 보다 코드 한 단계 더 — generator Bean / machine-id
   관리 필요
-- (단) machine id 충돌 시 *조용한 ID 충돌* 위험 — 운영에서 명시 주입 권장
+- (단) machine id 충돌 시 조용한 ID 충돌 위험 — 운영에서 명시 주입 권장
 - (단) 41bit timestamp 한계 — 2026 epoch 기준 ~2095 까지. 그 이전에 차세대 형식 검토 필요
 
 ## 후속 후보

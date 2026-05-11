@@ -28,7 +28,7 @@
 ### 알고리즘 — Token bucket
 
 통(bucket) 에 토큰이 매 `refillInterval` 마다 `refillTokens` 개씩 채워지고, 요청 1건이 토큰
-1개를 소비. 토큰 0 이면 거부. 통의 최대 용량 `capacity` 만큼은 *burst* 를 허용 — 평소 조용한
+1개를 소비. 토큰 0 이면 거부. 통의 최대 용량 `capacity` 만큼은 burst 를 허용 — 평소 조용한
 사용자가 필요 시 capacity 만큼은 즉시 발사 가능, 그 이후엔 refill rate 로 제한.
 
 상태값은 `tokens (현재 잔량) + lastRefillMs (마지막 refill 기준 시각)` 두 개. Redis 에 hash 한
@@ -57,7 +57,7 @@ key = "<userId>:<ControllerClass>#<methodName>"
 같은 사용자의 같은 endpoint 별 통. 사용자가 여러 endpoint 를 쓰면 통이 분리 — 호가 폭주가
 즉시 매매 토큰을 소진시키지 않음.
 
-URI 가 아니라 *handler method 시그니처* 로 키 — `/api/v1/listings/{id}` 같은 path variable 의
+URI 가 아니라 handler method 시그니처로 키 — `/api/v1/listings/{id}` 같은 path variable 의
 영향이 없다.
 
 JWT 가 비활성인 dev / 익명 사용자 fallback: `anon-<X-Forwarded-For 의 leftmost IP>`. 한 IP 가 모든
@@ -94,7 +94,7 @@ annotation 을 method 에 부착. interceptor 가 controller 진입 직전에:
 Redis 다운 시 `tryConsume` 은 throw 하지 않고 **allowed** 로 fallback. 이유:
 
 - 한정판 발매 시점에 redis 까지 함께 죽으면 사용자 전체가 503 — 사고가 더 커진다
-- rate limit 은 *최적화/보호* 이지 정확성에 필요한 정책이 아니다. 일시적 우회는 받아들일 수 있다
+- rate limit 은 최적화/보호이지 정확성에 필요한 정책이 아니다. 일시적 우회는 받아들일 수 있다
 - 본 시스템의 실제 정합성 (이중 체결 방지) 은 ADR-0005 의 advisory lock + FOR UPDATE SKIP LOCKED
   로 별도 보장 → rate limiter 가 일시 풀려도 정합성 깨지지 않음
 
@@ -112,20 +112,20 @@ endpoint 는 인증된 사용자가 자기 행위에 대해 호출하므로 fail
 - **Sliding window log** — 모든 요청 timestamp 를 정확하게 보관. Redis sorted set + ZRANGEBYSCORE.
   100% 정확하지만 메모리 사용량 (요청 수 비례) + 매 요청 N 개의 timestamp 조작 → token bucket
   보다 무거움. 본 시스템 규모에 과함.
-- **Fixed window counter** — 1초 단위 INCR. 단순하지만 *경계 burst* 에 취약 (예: 0.999s 와 1.001s
+- **Fixed window counter** — 1초 단위 INCR. 단순하지만 경계 burst 에 취약 (예: 0.999s 와 1.001s
   사이에 통의 두 배가 통과).
 - **Resilience4j RateLimiter** — JVM 안에서만 동작. 멀티 인스턴스라 한 사용자가 다른 pod 들에
   요청을 흩뿌리면 보호 효과가 인스턴스 수 만큼 약해진다.
 - **Bucket4j + Redis-backed** — 외부 라이브러리. 의존성 늘리지 않으려고 자체 Lua 로 구현 — 코드
   ~50 줄 + Lua ~30 줄, 관리 가능 수준.
-- **Spring AOP `@Aspect`** — `aspectjweaver` 의존성 추가 필요. AOP 가 *깔끔* 하지만 controller
+- **Spring AOP `@Aspect`** — `aspectjweaver` 의존성 추가 필요. AOP 가 짧긴 하지만 controller
   진입 직전이라는 의미상 위치가 명확하지 않음. HandlerInterceptor 가 Spring MVC 의 표준 위치.
 
 ## 결과
 
 - (장) atomic — 동시 요청이 통을 같이 빼는 race 없음 (Lua EVAL 보장)
 - (장) Retry-After 헤더가 RFC 표준이라 client 측에서 처리하기 쉬움
-- (장) annotation 로 endpoint 별 정책 차등 — 코드가 *어떤* 보호인지 controller method 에서 바로 보임
+- (장) annotation 로 endpoint 별 정책 차등 — 어떤 보호가 걸려 있는지 controller method 에서 바로 보임
 - (장) Redis 장애에도 fail-open — 가용성 우선
 - (단) 분산 환경에서 Redis RTT 가 latency 에 더해짐 (~0.5~1ms). 호가 등록의 latency budget 내라 OK
 - (단) user-tier 별 차등 정책 미구현 — 후속
@@ -134,9 +134,9 @@ endpoint 는 인증된 사용자가 자기 행위에 대해 호출하므로 fail
 
 ## 후속 후보
 
-- *user-tier 별 차등* — VIP 사용자에 더 큰 capacity. 토큰 발급 시 user 의 tier 를 룩업하는 hook.
-- *동적 정책* — properties 로 capacity / refill 외부화 + 런타임 변경.
-- *Adaptive throttling* — 시스템 부하 (DB CPU, 큐 깊이) 를 보고 capacity 를 동적 축소. 사고 시점
+- user-tier 별 차등 — VIP 사용자에 더 큰 capacity. 토큰 발급 시 user 의 tier 를 룩업하는 hook.
+- 동적 정책 — properties 로 capacity / refill 외부화 + 런타임 변경.
+- Adaptive throttling — 시스템 부하 (DB CPU, 큐 깊이) 를 보고 capacity 를 동적 축소. 사고 시점
   자동 보호.
-- *Distributed denial 방어* — IP 단위 별도 rate limit (이미 IP fallback 키가 있어 base 는 마련).
-- *Metrics* — 차단 이벤트를 Prometheus counter / Grafana 알림 → 비정상 트래픽 빠른 감지.
+- Distributed denial 방어 — IP 단위 별도 rate limit (이미 IP fallback 키가 있어 base 는 마련).
+- Metrics — 차단 이벤트를 Prometheus counter / Grafana 알림 → 비정상 트래픽 빠른 감지.
