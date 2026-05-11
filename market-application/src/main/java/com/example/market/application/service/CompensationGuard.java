@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.function.Function;
 
 /**
- * 외부 호출이 *정확히 한 번* 일어나도록 보장하는 helper. SAGA 의 보상 트랜잭션 (refund /
+ * 외부 호출이 정확히 한 번만 일어나도록 보장하는 helper. SAGA 의 보상 트랜잭션 (refund /
  * payout / 재시도) 에 적용.
  *
  * <h3>왜 필요한가</h3>
@@ -46,7 +46,7 @@ public class CompensationGuard {
     private final Clock clock;
 
     /**
-     * 다른 thread / 메시지가 같은 보상을 *지금 진행 중*. 일반적으로 메시지 컨슈머가 retry 하면
+     * 다른 thread / 메시지가 같은 보상을 지금 진행 중. 일반적으로 메시지 컨슈머가 retry 하면
      * 자연스럽게 해소되므로 호출자는 그대로 throw 시켜도 무방.
      */
     public static class DuplicateInProgressException extends RuntimeException {
@@ -84,8 +84,8 @@ public class CompensationGuard {
             if (entry.isInProgress()) {
                 throw new DuplicateInProgressException(operation, businessKey);
             }
-            // FAILED — 재시도 허용. 같은 PK 의 row 를 *update* 하는 begin 메서드 의미는 아니므로,
-            // store 가 PK 충돌을 받아 fall-through 하지 않게 *별도 entry-point* 가 필요. 본 라운드는
+            // FAILED — 재시도 허용. 같은 PK 의 row 를 update 하는 begin 메서드 의미는 아니므로,
+            // store 가 PK 충돌을 받아 fall-through 하지 않게 별도 entry-point 가 필요. 본 라운드는
             // FAILED row 를 그대로 두고, 호출자가 새 businessKey (예: "RETRY:" prefix) 로 진행하는
             // 운영 정책을 권장 — 이는 RetryRefundService 의 기존 흐름과 일치.
             log.warn("compensation 이전 시도가 FAILED 로 남음 — 새 키로 재시도 권장 op={} key={}",
@@ -102,7 +102,7 @@ public class CompensationGuard {
         try {
             store.begin(operation, businessKey, now);
         } catch (CompensationLogStore.DuplicateBeginException e) {
-            // 다른 thread 가 *동시에* begin 했다 — 다시 find 해서 분기.
+            // 다른 thread 가 동시에 begin 했다 — 다시 find 해서 분기.
             var raced = store.find(operation, businessKey);
             if (raced.isPresent() && raced.get().isInProgress()) {
                 throw new DuplicateInProgressException(operation, businessKey);

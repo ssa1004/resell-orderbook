@@ -56,8 +56,8 @@ public class TradeHistoryQueryService implements TradeHistoryQueryUseCase {
             return CursorPage.last(raw);
         }
 
-        // limit + 1 번째가 있다 → limit 개만 잘라내고 마지막 *반환된* row 의 (createdAt, id) 로
-        // 다음 cursor 생성. 직전이 아니라 *반환된 마지막* 인 이유 — 클라이언트는 그 다음 row 부터
+        // limit + 1 번째가 있다 → limit 개만 잘라내고 마지막 반환된 row 의 (createdAt, id) 로
+        // 다음 cursor 생성. 직전이 아니라 반환된 마지막인 이유 — 클라이언트는 그 다음 row 부터
         // 받기를 기대.
         List<Trade> page = raw.subList(0, safeLimit);
         Trade boundary = page.get(safeLimit - 1);

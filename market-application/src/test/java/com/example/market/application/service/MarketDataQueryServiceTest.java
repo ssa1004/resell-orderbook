@@ -177,7 +177,7 @@ class MarketDataQueryServiceTest {
         assertThat(page.items()).hasSize(5);
         assertThat(page.nextCursor()).isPresent();
 
-        // nextCursor 가 *반환된 마지막* row (id 104) 의 id 와 일치.
+        // nextCursor 가 반환된 마지막 row (id 104) 의 id 와 일치.
         long decoded = CursorCodec.decodeLong(page.nextCursor().get());
         assertThat(decoded).isEqualTo(104L);
     }

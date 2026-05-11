@@ -3,7 +3,7 @@ package com.example.market.application.pagination;
 import java.util.Objects;
 
 /**
- * 클라이언트가 다음 페이지를 요청할 때 그대로 다시 보내는 *opaque token*.
+ * 클라이언트가 다음 페이지를 요청할 때 그대로 다시 보내는 opaque token.
  *
  * <p>내용은 서버만 해석한다 (Base64 + JSON — {@link CursorCodec} 참고). 클라이언트가 의미를
  * 파헤쳐서 가공하지 않게 한 단계 인코딩으로 감싸면, 서버 쪽 cursor 의 필드가 변경되어도
@@ -13,7 +13,7 @@ import java.util.Objects;
  */
 public final class Cursor {
 
-    /** 빈 cursor — 클라이언트가 cursor 없이 호출하면 *첫 페이지부터* 반환. */
+    /** 빈 cursor — 클라이언트가 cursor 없이 호출하면 첫 페이지부터 반환. */
     public static final Cursor EMPTY = new Cursor("");
 
     private final String token;

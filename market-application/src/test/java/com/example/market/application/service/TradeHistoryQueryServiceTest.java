@@ -74,7 +74,7 @@ class TradeHistoryQueryServiceTest {
         assertThat(page.items()).hasSize(5);
         assertThat(page.nextCursor()).isPresent();
 
-        // nextCursor 가 *반환된 마지막* row 의 (createdAt, id) 와 일치.
+        // nextCursor 가 반환된 마지막 row 의 (createdAt, id) 와 일치.
         Trade lastReturned = page.items().get(4);
         TimeIdCursor decoded = CursorCodec.decodeTimeId(page.nextCursor().get());
         assertThat(decoded.time()).isEqualTo(lastReturned.createdAt());
@@ -106,12 +106,12 @@ class TradeHistoryQueryServiceTest {
 
     @Test
     void capsLimitAtMax() {
-        // limit 9999 를 보내도 service 가 100 으로 cap → repo 가 받는 *limit + 1* 도 101.
+        // limit 9999 를 보내도 service 가 100 으로 cap → repo 가 받는 limit + 1 도 101.
         when(trades.findByUserCursor(eq(BUYER.value()), any(), any(), eq(101)))
                 .thenReturn(List.of());
         service.historyOf(BUYER, Cursor.empty(), 9999);
         // verify 는 Mockito.never() 등 별도지만, when 에 안 걸린 limit 으로 호출되면 빈 리스트
-        // 가 아닌 null 이 돌아와 NPE — 위 stub 이 *받았다* 는 사실로 cap 입증.
+        // 가 아닌 null 이 돌아와 NPE — 위 stub 이 받았다는 사실로 cap 입증.
     }
 
     @Test

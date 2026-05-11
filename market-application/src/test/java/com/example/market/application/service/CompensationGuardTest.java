@@ -66,7 +66,7 @@ class CompensationGuardTest {
         });
 
         assertThat(calls.get()).isZero();
-        // externalId 가 1차와 동일 — *외부에 두 번 호출되지 않았음*.
+        // externalId 가 1차와 동일 — 외부에 두 번 호출되지 않았음.
         assertThat(outcome.externalId()).isEqualTo("ext-1");
         assertThat(outcome.responseCode()).isEqualTo("OK");
     }

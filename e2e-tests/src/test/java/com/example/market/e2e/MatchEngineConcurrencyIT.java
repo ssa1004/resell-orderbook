@@ -176,7 +176,7 @@ class MatchEngineConcurrencyIT extends E2ECleanupSupport {
         executor.shutdownNow();
 
         assertThat(finished).isTrue();
-        // 동시성 stress test 의 통과 조건은 *invariant* 위주로 둔다. matched 비율을 임계값으로
+        // 동시성 stress test 의 통과 조건은 invariant 위주로 둔다. matched 비율을 임계값으로
         // 잡으면 CI/로컬 머신의 CPU/IO 지터에 따라 flaky 해진다 (OptimisticLock 으로 일부 thread
         // 실패는 retry 가 처리하지만, retry 회수는 환경에 따라 달라짐). 본 검증의 실제 목표는
         // "매칭이 직렬화되어도 throughput 이 0 이 되지 않고 측정 가능 시간 안에 끝난다" 다.

@@ -105,7 +105,7 @@ public class TwoTierMarketStatsCache implements MarketStatsCache {
         this.lockTtl = Duration.ofMillis(lockTtlMs);
         this.loaderRetryWait = Duration.ofMillis(loaderRetryWaitMs);
         this.loaderRetryAttempts = loaderRetryAttempts;
-        // expireAfterWrite 는 *hard* 만료 — soft 만료 (XFetch) 는 우리가 entry 안에 expiresAt 을 두고 직접 검사.
+        // expireAfterWrite 는 hard 만료 — soft 만료 (XFetch) 는 우리가 entry 안에 expiresAt 을 두고 직접 검사.
         // L1 hard TTL 은 L2 TTL 과 같게 두어 "L1 에 있는데 L2 미스" 같은 비대칭이 안 나오게 함.
         this.l1 = Caffeine.newBuilder()
                 .maximumSize(l1MaxSize)

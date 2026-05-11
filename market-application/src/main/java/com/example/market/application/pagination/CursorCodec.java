@@ -11,7 +11,7 @@ import java.util.UUID;
  *
  * <h3>왜 opaque 인가</h3>
  *
- * <p>클라이언트가 cursor 의 내용을 *보지 못하게* 하면 서버 쪽 cursor 의 필드 변경에 클라이언트
+ * <p>클라이언트가 cursor 의 내용을 보지 못하게 하면 서버 쪽 cursor 의 필드 변경에 클라이언트
  * 호환성이 깨지지 않는다 (예: 단일 id → (time, id) 복합 키 전환). cursor pagination 을 제공하는
  * 공개 API 들이 보편적으로 채택하는 패턴.</p>
  *
@@ -24,11 +24,11 @@ import java.util.UUID;
  * </ul>
  *
  * <p>단순 string concat — Jackson 없이도 결정적이고 디버깅 시 base64 풀어서 바로 볼 수 있다.
- * 외부에 노출되지 않으므로 형식이 *우리* 만 알면 충분.</p>
+ * 외부에 노출되지 않으므로 형식은 서버 쪽만 알면 충분.</p>
  *
  * <h3>버전 prefix ("v1")</h3>
  *
- * <p>cursor 형식이 바뀔 때 (예: epochMillis → epochNanos) 클라이언트가 들고 있던 *오래된* cursor
+ * <p>cursor 형식이 바뀔 때 (예: epochMillis → epochNanos) 클라이언트가 들고 있던 오래된 cursor
  * 도 한동안 받아주려면 prefix 로 버전을 식별해야 한다. {@code v1} 만 알면서 시작 — 미래에 v2
  * 추가 시 codec 이 분기.</p>
  */
