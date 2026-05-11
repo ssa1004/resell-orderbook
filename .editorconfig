@@ -1,0 +1,35 @@
+# EditorConfig — IDE / 에디터 공통 들여쓰기 / 줄끝 / 인코딩 통일.
+# https://editorconfig.org
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Markdown 은 trailing space 두 개가 줄바꿈 의미라 trim 끄기.
+[*.md]
+trim_trailing_whitespace = false
+
+# YAML / JSON / Helm chart 값 / GitHub Actions / docker-compose: 2 칸이 관례.
+[*.{yml,yaml,json}]
+indent_size = 2
+
+# Gradle wrapper / Makefile / shell script.
+[Makefile]
+indent_style = tab
+
+[*.{sh,bash}]
+indent_size = 2
+
+# Java / Kotlin / Gradle Kotlin DSL — 4 칸 (현 코드베이스와 일치).
+[*.{java,kt,kts}]
+indent_size = 4
+
+# .gitignore / .gitattributes / .dockerignore 류.
+[{.gitignore,.gitattributes,.dockerignore,.editorconfig}]
+indent_size = 2
