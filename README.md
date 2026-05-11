@@ -188,7 +188,7 @@ trade.ifPresentOrElse(t -> {
 ## 테스트 및 빌드
 
 ```bash
-./gradlew check                       # 전체 (263개)
+./gradlew check                       # 전체 (266개)
 ./gradlew :market-domain:test         # 도메인 단위
 ./gradlew :market-bootstrap:bootJar   # 배포용 jar 생성
 ```
@@ -196,7 +196,7 @@ trade.ifPresentOrElse(t -> {
 | 모듈 | 테스트 수 | 검증 |
 |---|---|---|
 | domain | 94 | Money, Listing/Bid 불변식, 매칭 엔진, 거래 상태머신, 수수료 계산, MarketStats / OHLC 집계, Snowflake ID |
-| application | 77 | 매칭/결제/검수/환불/정산 서비스, 토큰 버킷 rate limiter, saga 보상 멱등성 (mock 기반) |
+| application | 80 | 매칭/결제/검수/환불/정산 서비스, 토큰 버킷 rate limiter, saga 보상 멱등성 (mock 기반) |
 | adapter-in | 22 | TradingController / 호가창 STOMP / 인증 추출기 / GlobalExceptionHandler slice |
 | adapter-out | 54 | Mock PG, Wiremock IT, Resilience4j CB, Redis Testcontainer (2단 캐시 + pub/sub invalidation), Bulkhead, Outbox relay |
 | bootstrap | 8 | Modulith verify, application context smoke, 모듈 다이어그램 자동 생성 |
