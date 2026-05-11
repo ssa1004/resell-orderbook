@@ -76,7 +76,8 @@ jobs:
           docker build -t resell-orderbook:${{ github.sha }} \
             -f infrastructure/Dockerfile .
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@master
+        # @master 같은 mutable ref 는 공급망 취약점 — tag 로 고정.
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: resell-orderbook:${{ github.sha }}
           severity: CRITICAL,HIGH
