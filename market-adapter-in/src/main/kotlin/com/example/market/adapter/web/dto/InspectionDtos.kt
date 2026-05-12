@@ -39,16 +39,16 @@ data class InspectionRequestResponse(
 ) {
     companion object {
         fun from(r: InspectionRequest) = InspectionRequestResponse(
-            id = r.id().toString(),
-            tradeId = r.tradeId().toString(),
-            status = r.status().name,
-            outcome = r.result()?.outcome()?.name,
-            reason = r.result()?.reason(),
-            note = r.result()?.note(),
-            inspectorId = r.inspectorId()?.value(),
+            id = r.id.toString(),
+            tradeId = r.tradeId.toString(),
+            status = r.status.name,
+            outcome = r.result?.outcome?.name,
+            reason = r.result?.reason,
+            note = r.result?.note,
+            inspectorId = r.inspectorId?.value(),
             photoUrls = r.photoUrls(),
-            requestedAt = r.requestedAt(),
-            decidedAt = r.decidedAt(),
+            requestedAt = r.requestedAt,
+            decidedAt = r.decidedAt,
         )
     }
 }

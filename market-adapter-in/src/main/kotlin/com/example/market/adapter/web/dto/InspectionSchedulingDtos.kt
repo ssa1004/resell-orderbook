@@ -23,13 +23,13 @@ data class AppointmentView(
 ) {
     companion object {
         fun from(a: InspectionAppointment): AppointmentView = AppointmentView(
-            id = a.id().toString(),
-            tradeId = a.tradeId().toString(),
-            centerId = a.centerId().toString(),
-            slotStart = a.slotStart().toString(),
-            slotEnd = a.slotEnd().toString(),
-            status = a.status().name,
-            bookedAt = a.bookedAt().toString(),
+            id = a.id.toString(),
+            tradeId = a.tradeId.toString(),
+            centerId = a.centerId.toString(),
+            slotStart = a.slotStart.toString(),
+            slotEnd = a.slotEnd.toString(),
+            status = a.status.name,
+            bookedAt = a.bookedAt.toString(),
         )
     }
 }
@@ -44,12 +44,12 @@ data class CenterView(
 ) {
     companion object {
         fun from(c: InspectionCenter): CenterView = CenterView(
-            id = c.id().toString(),
-            name = c.name(),
-            address = c.address(),
-            parallelCapacity = c.parallelCapacity(),
-            slotDurationMinutes = c.slotDuration().toMinutes(),
-            bookingLeadTimeMinutes = c.bookingLeadTime().toMinutes(),
+            id = c.id.toString(),
+            name = c.name,
+            address = c.address,
+            parallelCapacity = c.parallelCapacity,
+            slotDurationMinutes = c.slotDuration.toMinutes(),
+            bookingLeadTimeMinutes = c.bookingLeadTime.toMinutes(),
         )
     }
 }
@@ -66,12 +66,12 @@ data class SlotAvailabilityView(
 ) {
     companion object {
         fun from(s: SlotAvailability): SlotAvailabilityView = SlotAvailabilityView(
-            slotStart = s.slotStart().toString(),
-            slotEnd = s.slotEnd().toString(),
-            totalCapacity = s.totalCapacity(),
-            bookedCount = s.bookedCount(),
+            slotStart = s.slotStart.toString(),
+            slotEnd = s.slotEnd.toString(),
+            totalCapacity = s.totalCapacity,
+            bookedCount = s.bookedCount,
             remaining = s.remaining(),
-            bookable = s.bookable(),
+            bookable = s.bookable,
         )
     }
 }

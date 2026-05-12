@@ -1,4 +1,4 @@
-package com.example.market.domain.inspection.scheduling;
+package com.example.market.domain.inspection.scheduling
 
 /**
  * 검수 예약 상태.
@@ -16,7 +16,7 @@ package com.example.market.domain.inspection.scheduling;
  * <p>RESERVED 와 ARRIVED 만 "센터 capacity 점유" — NO_SHOW / CANCELLED 는 자리 회수.
  * COMPLETED / REJECTED 는 이미 검수 진행이 끝났으므로 자리 free 한 것과 동일.</p>
  */
-public enum AppointmentStatus {
+enum class AppointmentStatus {
     RESERVED,
     ARRIVED,
     COMPLETED,
@@ -24,11 +24,8 @@ public enum AppointmentStatus {
     CANCELLED,
     NO_SHOW;
 
-    public boolean isOccupyingCapacity() {
-        return this == RESERVED || this == ARRIVED;
-    }
+    fun isOccupyingCapacity(): Boolean = this == RESERVED || this == ARRIVED
 
-    public boolean isTerminal() {
-        return this == COMPLETED || this == REJECTED || this == CANCELLED || this == NO_SHOW;
-    }
+    fun isTerminal(): Boolean =
+        this == COMPLETED || this == REJECTED || this == CANCELLED || this == NO_SHOW
 }
