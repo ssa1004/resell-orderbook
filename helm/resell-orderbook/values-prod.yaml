@@ -1,10 +1,9 @@
 # 운영 (prod) 오버라이드.
 #   helm upgrade --install resell-orderbook ./helm/resell-orderbook \
 #     -n market -f helm/resell-orderbook/values-prod.yaml \
-#     --set postgres.existingSecret=market-postgres \
-#     --set externalPg.webhookSecretExistingSecret=market-pg-webhook
+#     --set postgres.existingSecret=market-postgres
 #
-# 비밀 값 (DB password, PG webhook secret) 은 chart 에 평문으로 두지 않고 ExistingSecret 참조.
+# 비밀 값 (DB password) 은 chart 에 평문으로 두지 않고 ExistingSecret 참조.
 
 springProfile: prod
 
@@ -33,8 +32,6 @@ ingress:
         - path: /api/v1/trades
           pathType: Prefix
         - path: /api/v1/admin
-          pathType: Prefix
-        - path: /webhooks
           pathType: Prefix
   tls:
     - secretName: orderbook-tls
@@ -85,9 +82,6 @@ kafka:
 
 externalPg:
   baseUrl: https://pg-internal.example.com
-  webhookSecret: ""
-  webhookSecretExistingSecret: market-pg-webhook
-  webhookSecretExistingSecretKey: webhook-secret
 
 oauth:
   issuerUri: https://idp.example.com/realms/market

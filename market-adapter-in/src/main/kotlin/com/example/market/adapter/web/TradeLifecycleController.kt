@@ -6,6 +6,7 @@ import com.example.market.adapter.web.dto.RecordSellerShippingRequest
 import com.example.market.adapter.web.dto.TradeResponse
 import com.example.market.application.command.CompleteTradeCommand
 import com.example.market.application.exception.TradeNotFoundException
+import com.example.market.application.exception.UnauthorizedTradeOperationException
 import com.example.market.application.pagination.Cursor
 import com.example.market.application.port.`in`.CompleteTradeUseCase
 import com.example.market.application.port.`in`.RecordSellerShippingUseCase
@@ -69,11 +70,26 @@ class TradeLifecycleController(
         return TradeResponse.from(trade)
     }
 
+    /**
+     * 거래 단건 조회 — 본인 (buyer 또는 seller) 만 허용.
+     *
+     * <p>BOLA (Broken Object Level Authorization) 차단. 거래 ID 는 UUIDv4 라 추측은 어렵지만,
+     * 거래 ID 가 우연히 노출되더라도 (로그/스크린샷/공유) 제3자가 buyerId/sellerId/가격을 조회
+     * 하지 못하게 한다. 검수/정산 운영자가 봐야 할 때는 별도 ADMIN endpoint 로 분리.</p>
+     */
     @GetMapping("/{id}")
-    @Operation(summary = "거래 조회")
-    fun get(@PathVariable id: String): TradeResponse {
+    @Operation(summary = "거래 조회 (본인 = buyer 또는 seller 만)")
+    fun get(
+        @AuthenticationPrincipal jwt: Jwt?,
+        @PathVariable id: String,
+    ): TradeResponse {
+        val caller = callerExtractor.from(jwt)
         val trade = trades.findById(TradeId.of(id))
             .orElseThrow { TradeNotFoundException(TradeId.of(id)) }
+        val callerId = caller.userId()
+        if (callerId != trade.buyerId() && callerId != trade.sellerId()) {
+            throw UnauthorizedTradeOperationException(trade.id(), callerId, "read")
+        }
         return TradeResponse.from(trade)
     }
 

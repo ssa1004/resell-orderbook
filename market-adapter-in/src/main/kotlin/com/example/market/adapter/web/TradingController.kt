@@ -28,6 +28,8 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import kotlin.jvm.optionals.getOrNull
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -66,7 +68,7 @@ class TradingController(
     @RateLimited(capacity = 20, refillTokens = 5)
     fun place(
         @AuthenticationPrincipal jwt: Jwt?,
-        @RequestHeader("Idempotency-Key") idempotencyKey: String,
+        @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 1, max = 128) idempotencyKey: String,
         @Valid @RequestBody req: PlaceListingRequest,
     ): ResponseEntity<PlaceListingResponse> {
         val caller = callerExtractor.from(jwt)
@@ -96,7 +98,7 @@ class TradingController(
     @RateLimited(capacity = 20, refillTokens = 5)
     fun placeBid(
         @AuthenticationPrincipal jwt: Jwt?,
-        @RequestHeader("Idempotency-Key") idempotencyKey: String,
+        @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 1, max = 128) idempotencyKey: String,
         @Valid @RequestBody req: PlaceBidRequest,
     ): ResponseEntity<PlaceBidResponse> {
         val caller = callerExtractor.from(jwt)
@@ -126,7 +128,7 @@ class TradingController(
     @RateLimited(capacity = 10, refillTokens = 2)
     fun buyNow(
         @AuthenticationPrincipal jwt: Jwt?,
-        @RequestHeader("Idempotency-Key") idempotencyKey: String,
+        @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 1, max = 128) idempotencyKey: String,
         @Valid @RequestBody req: InstantTradeRequest,
     ): ResponseEntity<TradeResponse> {
         val caller = callerExtractor.from(jwt)
@@ -140,7 +142,7 @@ class TradingController(
     @RateLimited(capacity = 10, refillTokens = 2)
     fun sellNow(
         @AuthenticationPrincipal jwt: Jwt?,
-        @RequestHeader("Idempotency-Key") idempotencyKey: String,
+        @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 1, max = 128) idempotencyKey: String,
         @Valid @RequestBody req: InstantTradeRequest,
     ): ResponseEntity<TradeResponse> {
         val caller = callerExtractor.from(jwt)

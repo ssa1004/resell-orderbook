@@ -130,7 +130,6 @@ affinity: {}
 #   /api/v1/orderbook/*  — 호가창 조회 (read)
 #   /api/v1/trades/*     — 거래 조회 / 검수 결과 등록 (write)
 #   /api/v1/admin/*      — 운영자용 (수수료 정책 / 만료 호가 정리 트리거)
-#   /webhooks/*          — 외부 PG 결제 결과 콜백
 ingress:
   enabled: false
   className: nginx
@@ -143,8 +142,6 @@ ingress:
         - path: /api/v1/trades
           pathType: Prefix
         - path: /api/v1/admin
-          pathType: Prefix
-        - path: /webhooks
           pathType: Prefix
   tls: []
   # tls:
@@ -202,12 +199,11 @@ kafka:
   bootstrapServers: kafka.market.svc.cluster.local:9092
 
 # 외부 PG (결제대행사). 운영은 실제 endpoint, dev/staging 은 wiremock 으로 mock.
+# 현재는 한 방향 — 앱이 PG.authorize/refund 호출 (RestPgClient). PG → 앱 webhook 은
+# 아직 도메인이 없어 chart 에서도 제거. webhook 도입 시점에 endpoint + HMAC 검증
+# 코드와 함께 다시 추가 (OWASP API7 SSRF + API10 vendor signature).
 externalPg:
   baseUrl: http://wiremock.market.svc.cluster.local:8080
-  # PG 가 webhook 호출 시 함께 보내는 HMAC secret 검증 키.
-  webhookSecret: dev-webhook-secret
-  webhookSecretExistingSecret: ""
-  webhookSecretExistingSecretKey: webhook-secret
 
 # OAuth2 Resource Server — auth-service 의 JWK Set issuer.
 oauth:

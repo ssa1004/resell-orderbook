@@ -69,20 +69,6 @@ spec:
                   name: {{ include "resell-orderbook.fullname" . }}
                   key: DB_PASSWORD
             {{- end }}
-            # PG_WEBHOOK_SECRET: 동일 패턴.
-            {{- if .Values.externalPg.webhookSecretExistingSecret }}
-            - name: PG_WEBHOOK_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.externalPg.webhookSecretExistingSecret }}
-                  key: {{ .Values.externalPg.webhookSecretExistingSecretKey }}
-            {{- else if ne (default "" .Values.externalPg.webhookSecret) "" }}
-            - name: PG_WEBHOOK_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "resell-orderbook.fullname" . }}
-                  key: PG_WEBHOOK_SECRET
-            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.probes.startup.enabled }}
