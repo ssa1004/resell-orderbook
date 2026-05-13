@@ -1,0 +1,237 @@
+---
+# Backstage Software Catalog 정의 — resell-orderbook component + market-rest + trade-events + domain-events.
+# system 정의는 ssa1004/auth-service 레포에 있다.
+
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: resell-orderbook
+  description: "한정판 리셀 마켓 백엔드 — Bid/Ask 매칭 엔진 (advisory lock + SKIP LOCKED), 거래 라이프사이클 Saga + 보상, Spring Modulith, Outbox + Kafka"
+  annotations:
+    github.com/project-slug: ssa1004/resell-orderbook
+    backstage.io/source-location: url:https://github.com/ssa1004/resell-orderbook
+  tags:
+    - resell
+    - match-engine
+    - concurrency
+    - saga
+    - outbox-pattern
+    - spring-modulith
+    - websocket
+  links:
+    - url: https://github.com/ssa1004/resell-orderbook
+      title: GitHub Repository
+    - url: https://github.com/ssa1004/resell-orderbook/blob/main/README.md
+      title: README
+    - url: https://github.com/ssa1004/resell-orderbook/tree/main/docs/adr
+      title: ADRs
+spec:
+  type: service
+  lifecycle: experimental
+  owner: user:ssa1004
+  system: ssa1004-portfolio
+  providesApis:
+    - market-rest
+    - resell-orderbook-trade-events
+    - resell-orderbook-domain-events
+  dependsOn:
+    - component:auth-service
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: market-rest
+  description: "한정판 리셀 마켓 REST API — 상품 / 호가 / 주문 (Bid / Ask) / 매칭 결과 조회"
+  annotations:
+    github.com/project-slug: ssa1004/resell-orderbook
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: user:ssa1004
+  system: ssa1004-portfolio
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Resell Orderbook Market REST API
+      version: 1.0.0
+      description: |
+        한정판 리셀 마켓 백엔드의 REST 엔드포인트.
+        Bid / Ask 매칭 엔진 (advisory lock + SKIP LOCKED) 위에 얹은 API.
+    paths:
+      /api/v1/products/{productId}/orderbook:
+        get:
+          summary: 상품 호가창 (Bid / Ask top N)
+          parameters:
+            - in: path
+              name: productId
+              required: true
+              schema: { type: string }
+            - in: query
+              name: depth
+              schema: { type: integer, default: 10 }
+          responses:
+            "200": { description: 호가 목록 }
+      /api/v1/orders:
+        post:
+          summary: 주문 등록 (BID / ASK)
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  type: object
+                  required: [productId, side, price, quantity, idempotencyKey]
+                  properties:
+                    productId: { type: string }
+                    side: { type: string, enum: [BID, ASK] }
+                    price: { type: integer }
+                    quantity: { type: integer }
+                    idempotencyKey: { type: string }
+          responses:
+            "201":
+              description: 주문 등록 완료 (매칭은 비동기)
+              content:
+                application/json:
+                  schema:
+                    type: object
+                    properties:
+                      orderId: { type: string }
+                      status: { type: string, enum: [OPEN, MATCHED, PARTIAL, CANCELLED] }
+      /api/v1/orders/{orderId}:
+        get:
+          summary: 주문 상태 조회
+          parameters:
+            - in: path
+              name: orderId
+              required: true
+              schema: { type: string }
+          responses:
+            "200": { description: 주문 상태 }
+        delete:
+          summary: 주문 취소
+          parameters:
+            - in: path
+              name: orderId
+              required: true
+              schema: { type: string }
+          responses:
+            "204": { description: 취소 완료 }
+      /api/v1/trades:
+        get:
+          summary: 체결 내역
+          parameters:
+            - in: query
+              name: productId
+              schema: { type: string }
+            - in: query
+              name: cursor
+              schema: { type: string }
+          responses:
+            "200": { description: 체결 내역 }
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: resell-orderbook-trade-events
+  description: "체결 이벤트 (trades.executed) — realtime-feed-service 가 WebSocket / SSE 로 fan-out"
+  annotations:
+    github.com/project-slug: ssa1004/resell-orderbook
+spec:
+  type: asyncapi
+  lifecycle: experimental
+  owner: user:ssa1004
+  system: ssa1004-portfolio
+  definition: |
+    asyncapi: 2.6.0
+    info:
+      title: Resell Orderbook Trade Events
+      version: 1.0.0
+      description: |
+        매칭 엔진이 체결을 확정할 때마다 발행하는 trade 이벤트.
+        realtime-feed-service 가 이 topic 을 구독해 클라이언트에 실시간 push.
+    channels:
+      trades.executed:
+        subscribe:
+          message:
+            payload:
+              type: object
+              required: [tradeId, executedAt, productId, price, quantity, bidOrderId, askOrderId]
+              properties:
+                tradeId: { type: string }
+                executedAt: { type: string, format: date-time }
+                productId: { type: string }
+                price: { type: integer }
+                quantity: { type: integer }
+                bidOrderId: { type: string }
+                askOrderId: { type: string }
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: resell-orderbook-domain-events
+  description: "리셀 마켓 도메인 이벤트 (Outbox + Kafka) — order.matched / order.cancelled / trade.settled / saga.compensated"
+  annotations:
+    github.com/project-slug: ssa1004/resell-orderbook
+spec:
+  type: asyncapi
+  lifecycle: experimental
+  owner: user:ssa1004
+  system: ssa1004-portfolio
+  definition: |
+    asyncapi: 2.6.0
+    info:
+      title: Resell Orderbook Domain Events
+      version: 1.0.0
+      description: |
+        resell-orderbook 가 Outbox + Kafka 로 발행하는 도메인 이벤트.
+        notification-hub 가 구독해 매칭 / 정산 알림으로 fan-out.
+    channels:
+      orderbook.order.matched:
+        subscribe:
+          message:
+            payload:
+              type: object
+              required: [eventId, occurredAt, orderId, matchedQuantity, price]
+              properties:
+                eventId: { type: string, format: uuid }
+                occurredAt: { type: string, format: date-time }
+                orderId: { type: string }
+                matchedQuantity: { type: integer }
+                price: { type: integer }
+      orderbook.order.cancelled:
+        subscribe:
+          message:
+            payload:
+              type: object
+              required: [eventId, occurredAt, orderId, reason]
+              properties:
+                eventId: { type: string, format: uuid }
+                occurredAt: { type: string, format: date-time }
+                orderId: { type: string }
+                reason: { type: string }
+      orderbook.trade.settled:
+        subscribe:
+          message:
+            payload:
+              type: object
+              required: [eventId, occurredAt, tradeId, amount]
+              properties:
+                eventId: { type: string, format: uuid }
+                occurredAt: { type: string, format: date-time }
+                tradeId: { type: string }
+                amount: { type: integer }
+      orderbook.saga.compensated:
+        subscribe:
+          message:
+            payload:
+              type: object
+              required: [eventId, occurredAt, sagaId, step, reason]
+              properties:
+                eventId: { type: string, format: uuid }
+                occurredAt: { type: string, format: date-time }
+                sagaId: { type: string }
+                step: { type: string }
+                reason: { type: string }
