@@ -43,8 +43,8 @@ data class FeePolicy(
         require(!inspectionFee.isNegative) { "inspectionFee must be >= 0" }
         require(!shippingFee.isNegative) { "shippingFee must be >= 0" }
         require(!fixedProcessingFee.isNegative) { "processingFee must be >= 0" }
-        val c = inspectionFee.currency()
-        require(shippingFee.currency() == c && fixedProcessingFee.currency() == c) {
+        val c = inspectionFee.currency
+        require(shippingFee.currency == c && fixedProcessingFee.currency == c) {
             "all fees must share currency"
         }
     }

@@ -45,7 +45,7 @@ data class InspectionRequestResponse(
             outcome = r.result?.outcome?.name,
             reason = r.result?.reason,
             note = r.result?.note,
-            inspectorId = r.inspectorId?.value(),
+            inspectorId = r.inspectorId?.value,
             photoUrls = r.photoUrls(),
             requestedAt = r.requestedAt,
             decidedAt = r.decidedAt,

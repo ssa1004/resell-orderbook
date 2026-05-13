@@ -22,7 +22,7 @@ class CallerExtractorTest {
         try {
             val extractor = CallerExtractor(jwtEnabled = false)
             val caller = extractor.from(jwt = null)
-            assertThat(caller.userId().value()).isEqualTo("u-123")
+            assertThat(caller.userId().value).isEqualTo("u-123")
         } finally {
             RequestContextHolder.resetRequestAttributes()
         }
@@ -35,7 +35,7 @@ class CallerExtractorTest {
         try {
             val extractor = CallerExtractor(jwtEnabled = false)
             val caller = extractor.from(jwt = null)
-            assertThat(caller.userId().value()).isEqualTo("anonymous")
+            assertThat(caller.userId().value).isEqualTo("anonymous")
         } finally {
             RequestContextHolder.resetRequestAttributes()
         }
@@ -69,7 +69,7 @@ class CallerExtractorTest {
             .build()
         val extractor = CallerExtractor(jwtEnabled = true)
         val caller = extractor.from(jwt)
-        assertThat(caller.userId().value()).isEqualTo("u-42")
+        assertThat(caller.userId().value).isEqualTo("u-42")
         assertThat(caller.roles()).containsExactlyInAnyOrder("USER", "ADMIN")
     }
 }

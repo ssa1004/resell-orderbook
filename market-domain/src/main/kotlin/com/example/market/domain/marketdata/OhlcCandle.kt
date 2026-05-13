@@ -51,13 +51,13 @@ data class OhlcCandle(
     fun isRising(): Boolean = close.compareTo(open) > 0
 
     /** 단순 통계 — 종가 - 시작가 (변동 폭). 음수면 하락. */
-    fun changeAmount(): BigDecimal = close.amount().subtract(open.amount())
+    fun changeAmount(): BigDecimal = close.amount.subtract(open.amount)
 
     /** 변동률 (%) — (종가 - 시작가) / 시작가 * 100. 시작가가 0 이면 0 반환. */
     fun changePercent(): BigDecimal {
-        if (open.amount().signum() == 0) return BigDecimal.ZERO
-        return close.amount().subtract(open.amount())
-            .divide(open.amount(), 4, RoundingMode.HALF_UP)
+        if (open.amount.signum() == 0) return BigDecimal.ZERO
+        return close.amount.subtract(open.amount)
+            .divide(open.amount, 4, RoundingMode.HALF_UP)
             .multiply(BigDecimal.valueOf(100))
     }
 

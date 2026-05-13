@@ -84,12 +84,12 @@ data class TradeResponse(
         fun from(t: Trade) = TradeResponse(
             id = t.id().toString(),
             skuId = t.skuId().toString(),
-            sellerId = t.sellerId().value(),
-            buyerId = t.buyerId().value(),
-            price = t.price().amount().toLong(),
-            currency = t.price().currency().currencyCode,
-            buyerCharge = t.feeSnapshot().buyerCharge().amount().toLong(),
-            sellerNet = t.feeSnapshot().sellerNet().amount().toLong(),
+            sellerId = t.sellerId().value,
+            buyerId = t.buyerId().value,
+            price = t.price().amount.toLong(),
+            currency = t.price().currency.currencyCode,
+            buyerCharge = t.feeSnapshot().buyerCharge.amount.toLong(),
+            sellerNet = t.feeSnapshot().sellerNet.amount.toLong(),
             status = t.status().name,
             createdAt = t.createdAt(),
         )
@@ -108,10 +108,10 @@ data class OrderBookView(
     companion object {
         fun from(v: OrderBookQueryUseCase.OrderBookView): OrderBookView = OrderBookView(
             skuId = v.skuId().toString(),
-            lowestAsk = v.lowestAsk().getOrNull()?.amount()?.toLong(),
-            highestBid = v.highestBid().getOrNull()?.amount()?.toLong(),
-            asks = v.asks().map { PriceLevel(it.price().amount().toLong(), it.count()) },
-            bids = v.bids().map { PriceLevel(it.price().amount().toLong(), it.count()) },
+            lowestAsk = v.lowestAsk().getOrNull()?.amount?.toLong(),
+            highestBid = v.highestBid().getOrNull()?.amount?.toLong(),
+            asks = v.asks().map { PriceLevel(it.price().amount.toLong(), it.count()) },
+            bids = v.bids().map { PriceLevel(it.price().amount.toLong(), it.count()) },
         )
     }
 }
