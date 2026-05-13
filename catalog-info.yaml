@@ -1,15 +1,15 @@
 ---
-# Backstage Software Catalog 정의 — resell-orderbook component + market-rest + trade-events + domain-events.
+# Backstage Software Catalog 정의 — bid-ask-marketplace component + market-rest + trade-events + domain-events.
 # system 정의는 ssa1004/auth-service 레포에 있다.
 
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: resell-orderbook
+  name: bid-ask-marketplace
   description: "한정판 리셀 마켓 백엔드 — Bid/Ask 매칭 엔진 (advisory lock + SKIP LOCKED), 거래 라이프사이클 Saga + 보상, Spring Modulith, Outbox + Kafka"
   annotations:
-    github.com/project-slug: ssa1004/resell-orderbook
-    backstage.io/source-location: url:https://github.com/ssa1004/resell-orderbook
+    github.com/project-slug: ssa1004/bid-ask-marketplace
+    backstage.io/source-location: url:https://github.com/ssa1004/bid-ask-marketplace
   tags:
     - resell
     - match-engine
@@ -19,11 +19,11 @@ metadata:
     - spring-modulith
     - websocket
   links:
-    - url: https://github.com/ssa1004/resell-orderbook
+    - url: https://github.com/ssa1004/bid-ask-marketplace
       title: GitHub Repository
-    - url: https://github.com/ssa1004/resell-orderbook/blob/main/README.md
+    - url: https://github.com/ssa1004/bid-ask-marketplace/blob/main/README.md
       title: README
-    - url: https://github.com/ssa1004/resell-orderbook/tree/main/docs/adr
+    - url: https://github.com/ssa1004/bid-ask-marketplace/tree/main/docs/adr
       title: ADRs
 spec:
   type: service
@@ -32,8 +32,8 @@ spec:
   system: ssa1004-portfolio
   providesApis:
     - market-rest
-    - resell-orderbook-trade-events
-    - resell-orderbook-domain-events
+    - bid-ask-marketplace-trade-events
+    - bid-ask-marketplace-domain-events
   dependsOn:
     - component:auth-service
 
@@ -44,7 +44,7 @@ metadata:
   name: market-rest
   description: "한정판 리셀 마켓 REST API — 상품 / 호가 / 주문 (Bid / Ask) / 매칭 결과 조회"
   annotations:
-    github.com/project-slug: ssa1004/resell-orderbook
+    github.com/project-slug: ssa1004/bid-ask-marketplace
 spec:
   type: openapi
   lifecycle: experimental
@@ -53,7 +53,7 @@ spec:
   definition: |
     openapi: 3.0.3
     info:
-      title: Resell Orderbook Market REST API
+      title: Bid/Ask Marketplace REST API
       version: 1.0.0
       description: |
         한정판 리셀 마켓 백엔드의 REST 엔드포인트.
@@ -134,10 +134,10 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
-  name: resell-orderbook-trade-events
+  name: bid-ask-marketplace-trade-events
   description: "체결 이벤트 (trades.executed) — realtime-feed-service 가 WebSocket / SSE 로 fan-out"
   annotations:
-    github.com/project-slug: ssa1004/resell-orderbook
+    github.com/project-slug: ssa1004/bid-ask-marketplace
 spec:
   type: asyncapi
   lifecycle: experimental
@@ -146,7 +146,7 @@ spec:
   definition: |
     asyncapi: 2.6.0
     info:
-      title: Resell Orderbook Trade Events
+      title: Bid/Ask Marketplace Trade Events
       version: 1.0.0
       description: |
         매칭 엔진이 체결을 확정할 때마다 발행하는 trade 이벤트.
@@ -171,10 +171,10 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
-  name: resell-orderbook-domain-events
+  name: bid-ask-marketplace-domain-events
   description: "리셀 마켓 도메인 이벤트 (Outbox + Kafka) — order.matched / order.cancelled / trade.settled / saga.compensated"
   annotations:
-    github.com/project-slug: ssa1004/resell-orderbook
+    github.com/project-slug: ssa1004/bid-ask-marketplace
 spec:
   type: asyncapi
   lifecycle: experimental
@@ -183,10 +183,10 @@ spec:
   definition: |
     asyncapi: 2.6.0
     info:
-      title: Resell Orderbook Domain Events
+      title: Bid/Ask Marketplace Domain Events
       version: 1.0.0
       description: |
-        resell-orderbook 가 Outbox + Kafka 로 발행하는 도메인 이벤트.
+        bid-ask-marketplace 가 Outbox + Kafka 로 발행하는 도메인 이벤트.
         notification-hub 가 구독해 매칭 / 정산 알림으로 fan-out.
     channels:
       orderbook.order.matched:

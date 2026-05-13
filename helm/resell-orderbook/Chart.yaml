@@ -12,9 +12,9 @@ keywords:
   - orderbook
   - matching-engine
   - saga
-home: https://github.com/ssa1004/resell-orderbook
+home: https://github.com/ssa1004/bid-ask-marketplace
 sources:
-  - https://github.com/ssa1004/resell-orderbook
+  - https://github.com/ssa1004/bid-ask-marketplace
 maintainers:
   - name: ssa1004
     email: wittyahn@users.noreply.github.com

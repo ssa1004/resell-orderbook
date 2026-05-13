@@ -1,11 +1,11 @@
-# resell-orderbook 기본 values. 운영 오버라이드는 values-prod.yaml 참고.
+# bid-ask-marketplace 기본 values. 운영 오버라이드는 values-prod.yaml 참고.
 # 기본은 dev/local-cluster 상정 — replicas 1, ingress off, NetworkPolicy off, wiremock on.
 
 # ----------------------------------------------------------------------------
 # 이미지
 # ----------------------------------------------------------------------------
 image:
-  repository: ghcr.io/ssa1004/resell-orderbook
+  repository: ghcr.io/ssa1004/bid-ask-marketplace
   # tag 가 비면 .Chart.AppVersion 사용
   tag: ""
   pullPolicy: IfNotPresent
@@ -86,7 +86,7 @@ serviceAccount:
   name: ""
   # AWS IRSA — IAM Role for ServiceAccount. EKS 외 환경에서는 비워둔다.
   annotations: {}
-    # eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/resell-orderbook
+    # eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/bid-ask-marketplace
 
 podSecurityContext:
   runAsNonRoot: true

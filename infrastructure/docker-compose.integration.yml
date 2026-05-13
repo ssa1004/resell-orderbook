@@ -1,6 +1,6 @@
 # Cross-repo 통합 시연용 compose.
 #
-# - resell-orderbook (본 저장소) 본체 + Postgres / Redis / Kafka / wiremock(외부 PG 모사)
+# - bid-ask-marketplace (본 저장소) 본체 + Postgres / Redis / Kafka / wiremock(외부 PG 모사)
 # - auth-stub: auth-service 의 JWK Set 노출만 모사 (정적 nginx)
 # - notification-hub-stub: notification-hub 가 구독할 토픽 (market.tradematched / paymentauthorized
 #                          / inspectionpassed / inspectionfailed / tradecompleted / refundingstarted)

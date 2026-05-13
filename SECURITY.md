@@ -14,7 +14,7 @@
 취약점을 발견하면 GitHub 의 [Private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability)
 기능을 사용해 주세요.
 
-- 저장소: <https://github.com/ssa1004/resell-orderbook>
+- 저장소: <https://github.com/ssa1004/bid-ask-marketplace>
 - 경로: **Security** 탭 → **Report a vulnerability**
 
 공개 issue 에는 취약점 상세를 적지 마세요.

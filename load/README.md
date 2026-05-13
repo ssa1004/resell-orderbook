@@ -1,6 +1,6 @@
 # Load test (k6)
 
-resell-orderbook 의 5 가지 부하 시나리오. 매칭 엔진 (advisory lock + FOR UPDATE SKIP LOCKED)
+bid-ask-marketplace 의 5 가지 부하 시나리오. 매칭 엔진 (advisory lock + FOR UPDATE SKIP LOCKED)
 과 호가창 / 거래 내역 read-side 의 동작을 k6 로 검증한다. 단순 RPS 측정에 더해 매칭
 엔진 특유의 invariant (응답 매칭 수 == DB Trade INSERT 수) 도 함께 본다.
 
