@@ -29,20 +29,20 @@ data class MarketStatsResponse(
 ) {
     companion object {
         fun from(s: MarketStats): MarketStatsResponse = MarketStatsResponse(
-            skuId = s.skuId().value.toString(),
-            asOf = s.asOf().toString(),
+            skuId = s.skuId.value.toString(),
+            asOf = s.asOf.toString(),
             // 통화는 가격 필드에서 — 없으면 KRW default
-            currency = (s.lastTradePrice() ?: s.bestBid() ?: s.bestAsk())
+            currency = (s.lastTradePrice ?: s.bestBid ?: s.bestAsk)
                 ?.currency()?.currencyCode ?: DEFAULT_CURRENCY,
-            lastTradePrice = s.lastTradePrice()?.amount(),
-            lastTradeAt = s.lastTradeAt()?.toString(),
-            bestBid = s.bestBid()?.amount(),
-            bestAsk = s.bestAsk()?.amount(),
-            spread = s.spread()?.amount(),
-            last24hVolume = s.last24hVolume(),
-            last24hMin = s.last24hMin()?.amount(),
-            last24hAvg = s.last24hAvg()?.amount(),
-            last24hMax = s.last24hMax()?.amount(),
+            lastTradePrice = s.lastTradePrice?.amount(),
+            lastTradeAt = s.lastTradeAt?.toString(),
+            bestBid = s.bestBid?.amount(),
+            bestAsk = s.bestAsk?.amount(),
+            spread = s.spread?.amount(),
+            last24hVolume = s.last24hVolume,
+            last24hMin = s.last24hMin?.amount(),
+            last24hAvg = s.last24hAvg?.amount(),
+            last24hMax = s.last24hMax?.amount(),
         )
     }
 }
@@ -55,9 +55,9 @@ data class PriceTickView(
 ) {
     companion object {
         fun from(t: PriceTick): PriceTickView = PriceTickView(
-            tradeId = t.tradeId().toString(),
-            price = t.price().amount(),
-            occurredAt = t.occurredAt().toString(),
+            tradeId = t.tradeId.toString(),
+            price = t.price.amount(),
+            occurredAt = t.occurredAt.toString(),
         )
     }
 }
@@ -84,13 +84,13 @@ data class OhlcCandleView(
 ) {
     companion object {
         fun from(c: OhlcCandle): OhlcCandleView = OhlcCandleView(
-            bucketStart = c.bucketStart().toString(),
-            open = c.open().amount(),
-            high = c.high().amount(),
-            low = c.low().amount(),
-            close = c.close().amount(),
-            volume = c.volume(),
-            tradeCount = c.tradeCount(),
+            bucketStart = c.bucketStart.toString(),
+            open = c.open.amount(),
+            high = c.high.amount(),
+            low = c.low.amount(),
+            close = c.close.amount(),
+            volume = c.volume,
+            tradeCount = c.tradeCount,
         )
     }
 }
@@ -116,7 +116,7 @@ data class OhlcCandlesResponse(
             period = period,
             from = from,
             to = to,
-            currency = candles.firstOrNull()?.open()?.currency()?.currencyCode ?: DEFAULT_CURRENCY,
+            currency = candles.firstOrNull()?.open?.currency()?.currencyCode ?: DEFAULT_CURRENCY,
             candles = candles.map(OhlcCandleView::from),
         )
     }
