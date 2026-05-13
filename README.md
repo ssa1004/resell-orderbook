@@ -208,6 +208,29 @@ trade.ifPresentOrElse(t -> {
 | bootstrap | 8 | Modulith verify, application context smoke, 모듈 다이어그램 자동 생성 |
 | e2e-tests | 8 | Postgres 위 매칭, 전체 라이프사이클, 검수 실패 환불, 동시 매칭 race |
 
+## Load test (k6)
+
+[`load/k6/`](load/k6/) 에 매칭 엔진 / 호가창 / 거래 내역 부하 시나리오 5종을 두었습니다.
+
+| 시나리오 | endpoint | 부하 모델 | 핵심 임계 |
+|---|---|---|---|
+| `listing-create` | `POST /api/v1/listings` | 100 req/s, 60s | p95 < 200ms, error < 1% |
+| `order-match` | `POST /api/v1/bids` | ramping 0→200 VU, 100s | p95 < 500ms, error < 2% |
+| `order-book-query` | `GET /api/v1/orderbook/{sku}` | 500 req/s, 60s | p95 < 50ms (read-heavy) |
+| `trade-history` | `GET /api/v1/trades/me/history` | 200 req/s, 60s | p95 < 100ms (cursor) |
+| `concurrent-match` | BID + ASK race | 0→30 VU, 45s | `match_invariant_violation == 0` |
+
+```bash
+./gradlew :market-bootstrap:bootRun                     # 본 앱 기동
+BASE_URL=http://localhost:8080 ./scripts/run-load.sh    # 5 시나리오 일괄
+```
+
+`concurrent-match` 는 단일 SKU 에 BID/ASK 를 동시에 쏟아부어 advisory lock +
+`FOR UPDATE SKIP LOCKED` 로 매칭이 직렬화되는지 client 단에서 검증합니다 — 같은
+`matchedTradeId` 가 두 호가 응답에 중복으로 떨어지면 invariant 위반. 자세한 metric
+해석과 매칭 엔진 특유 측정 항목 (advisory lock contention, Outbox lag, Saga 다음
+단계 지연) 은 [`load/README.md`](load/README.md).
+
 ## 운영 프로필 (`prod`)
 
 `SPRING_PROFILES_ACTIVE=prod` 일 때 활성화되는 항목입니다.

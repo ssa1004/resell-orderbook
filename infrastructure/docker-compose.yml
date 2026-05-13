@@ -58,3 +58,24 @@ services:
       PG_BASE_URL: http://wiremock:8080
       OAUTH_ISSUER_URI: http://localhost:9000   # 실제 IdP 로 교체
     ports: ["8080:8080"]
+
+  # k6 부하 시나리오 — docker compose --profile load up k6.
+  # 컨테이너 안에서 호스트의 BASE_URL 을 보려면 host.docker.internal 사용.
+  # 본 service 는 단발성 실행 (default command 가 없어 무한 sleep 으로 살아 있다가
+  # `docker compose run --rm k6 run /scripts/scenarios/<name>.js` 로 띄우는 게 보통).
+  k6:
+    profiles: [load]
+    image: grafana/k6:0.50.0
+    volumes:
+      - ../load/k6:/scripts:ro
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:8080}
+      K6_TOKEN: ${K6_TOKEN:-}
+      K6_SKUS: ${K6_SKUS:-}
+      CONCURRENT_MATCH_SKU: ${CONCURRENT_MATCH_SKU:-00000000-0000-0000-0000-cafe00000099}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # default 는 -h — 사용자가 `docker compose run --rm k6 run /scripts/scenarios/order-match.js`
+    # 형태로 호출.
+    entrypoint: ["k6"]
+    command: ["-h"]
