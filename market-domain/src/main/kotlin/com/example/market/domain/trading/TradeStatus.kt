@@ -1,9 +1,9 @@
-package com.example.market.domain.trading;
+package com.example.market.domain.trading
 
 /**
  * 거래 라이프사이클. 자세한 다이어그램은 docs/adr/0004-trade-saga.md.
  *
- * <pre>
+ * ```
  *  CREATED (매칭 직후, 결제 대기)
  *    │   buyer authorize 결제
  *    ▼
@@ -25,9 +25,9 @@ package com.example.market.domain.trading;
  *    │                      │
  *    ▼                      ▼
  *  COMPLETED (정산 완료)   FAILED
- * </pre>
+ * ```
  */
-public enum TradeStatus {
+enum class TradeStatus {
     CREATED,
     PAYMENT_AUTHORIZED,
     SELLER_SHIPPING,
@@ -39,5 +39,5 @@ public enum TradeStatus {
     COMPLETED,
     FAILED;
 
-    public boolean isTerminal() { return this == COMPLETED || this == FAILED; }
+    fun isTerminal(): Boolean = this == COMPLETED || this == FAILED
 }
