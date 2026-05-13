@@ -133,7 +133,7 @@ class TradingController(
     ): ResponseEntity<TradeResponse> {
         val caller = callerExtractor.from(jwt)
         val trade = buyNow.buyNow(req.toBuyNowCommand(idempotencyKey, caller.userId()))
-        return ResponseEntity.created(URI.create("/api/v1/trades/${trade.id()}"))
+        return ResponseEntity.created(URI.create("/api/v1/trades/${trade.id}"))
             .body(TradeResponse.from(trade))
     }
 
@@ -147,7 +147,7 @@ class TradingController(
     ): ResponseEntity<TradeResponse> {
         val caller = callerExtractor.from(jwt)
         val trade = sellNow.sellNow(req.toSellNowCommand(idempotencyKey, caller.userId()))
-        return ResponseEntity.created(URI.create("/api/v1/trades/${trade.id()}"))
+        return ResponseEntity.created(URI.create("/api/v1/trades/${trade.id}"))
             .body(TradeResponse.from(trade))
     }
 

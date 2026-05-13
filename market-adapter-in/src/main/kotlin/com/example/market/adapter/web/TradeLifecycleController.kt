@@ -87,8 +87,8 @@ class TradeLifecycleController(
         val trade = trades.findById(TradeId.of(id))
             .orElseThrow { TradeNotFoundException(TradeId.of(id)) }
         val callerId = caller.userId()
-        if (callerId != trade.buyerId() && callerId != trade.sellerId()) {
-            throw UnauthorizedTradeOperationException(trade.id(), callerId, "read")
+        if (callerId != trade.buyerId && callerId != trade.sellerId) {
+            throw UnauthorizedTradeOperationException(trade.id, callerId, "read")
         }
         return TradeResponse.from(trade)
     }

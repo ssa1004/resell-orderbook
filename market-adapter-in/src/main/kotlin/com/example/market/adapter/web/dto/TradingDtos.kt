@@ -82,16 +82,16 @@ data class TradeResponse(
 ) {
     companion object {
         fun from(t: Trade) = TradeResponse(
-            id = t.id().toString(),
-            skuId = t.skuId().toString(),
-            sellerId = t.sellerId().value,
-            buyerId = t.buyerId().value,
-            price = t.price().amount.toLong(),
-            currency = t.price().currency.currencyCode,
-            buyerCharge = t.feeSnapshot().buyerCharge.amount.toLong(),
-            sellerNet = t.feeSnapshot().sellerNet.amount.toLong(),
-            status = t.status().name,
-            createdAt = t.createdAt(),
+            id = t.id.toString(),
+            skuId = t.skuId.toString(),
+            sellerId = t.sellerId.value,
+            buyerId = t.buyerId.value,
+            price = t.price.amount.toLong(),
+            currency = t.price.currency.currencyCode,
+            buyerCharge = t.feeSnapshot.buyerCharge.amount.toLong(),
+            sellerNet = t.feeSnapshot.sellerNet.amount.toLong(),
+            status = t.status.name,
+            createdAt = t.createdAt,
         )
     }
 }
