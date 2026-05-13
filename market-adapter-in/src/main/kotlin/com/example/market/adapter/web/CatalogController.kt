@@ -30,7 +30,7 @@ class CatalogController(
     @Operation(summary = "상품 등록 (운영자)")
     fun register(@Valid @RequestBody req: RegisterProductRequest): ResponseEntity<ProductResponse> {
         val product = registerProduct.register(req.toCommand())
-        return ResponseEntity.created(URI.create("/api/v1/products/${product.id()}"))
+        return ResponseEntity.created(URI.create("/api/v1/products/${product.id}"))
             .body(ProductResponse.from(product))
     }
 

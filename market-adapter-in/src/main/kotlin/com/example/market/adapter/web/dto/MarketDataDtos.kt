@@ -29,7 +29,7 @@ data class MarketStatsResponse(
 ) {
     companion object {
         fun from(s: MarketStats): MarketStatsResponse = MarketStatsResponse(
-            skuId = s.skuId().value().toString(),
+            skuId = s.skuId().value.toString(),
             asOf = s.asOf().toString(),
             // 통화는 가격 필드에서 — 없으면 KRW default
             currency = (s.lastTradePrice() ?: s.bestBid() ?: s.bestAsk())

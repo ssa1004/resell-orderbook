@@ -30,14 +30,14 @@ data class ProductResponse(
 ) {
     companion object {
         fun from(p: Product) = ProductResponse(
-            id = p.id().toString(),
-            brand = p.brand(),
-            modelName = p.modelName(),
-            styleCode = p.styleCode(),
-            category = p.category(),
-            releaseDate = p.releaseDate(),
-            imageUrl = p.imageUrl(),
-            createdAt = p.createdAt(),
+            id = p.id.toString(),
+            brand = p.brand,
+            modelName = p.modelName,
+            styleCode = p.styleCode,
+            category = p.category,
+            releaseDate = p.releaseDate,
+            imageUrl = p.imageUrl,
+            createdAt = p.createdAt,
         )
     }
 }

@@ -47,7 +47,7 @@ class StompOrderBookBroadcaster(
         runCatching {
             val skuId = objectMapper.parseEvent(payload).requireSkuId()
             val snapshot = OrderBookView.from(orderBookQuery.view(skuId, 10))
-            messagingTemplate.convertAndSend("/topic/orderbook/${skuId.value()}", snapshot)
+            messagingTemplate.convertAndSend("/topic/orderbook/${skuId.value}", snapshot)
         }.onFailure { log.warn("stomp orderbook broadcast skipped: {}", it.message) }
     }
 }
