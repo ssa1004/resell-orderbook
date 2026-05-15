@@ -23,15 +23,26 @@ import java.time.Instant;
 /**
  * 운영자 admin endpoint — Refund.FAILED 상태의 환불을 PG 재호출.
  *
- * <p>Refund 자체는 새 인스턴스로 만들지 않고, 기존 Refund 의 status 가 FAILED 인 것을 *재요청*.
- * 도메인은 Refund 의 재시도 메서드가 없으므로, 새 Refund 를 만들어 처리 — 이전 Refund 는 audit log.</p>
+ * <p>도메인 Refund 에는 재시도 메서드가 없으므로, 실패한 Refund 를 그대로 두고 새 Refund 를
+ * 하나 만들어 PG 를 다시 호출한다 — 실패한 원래 Refund 는 audit log 으로 남는다.</p>
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class RetryRefundService implements RetryRefundUseCase {
 
-    /** RetryRefund 의 보상 키 — 같은 RefundId 에 대한 재시도를 구분 (원래 REFUND 와 별 row). */
+    /**
+     * RetryRefund 의 compensation_log operation — 원래 REFUND 와 별 row 로 관리.
+     *
+     * <p>businessKey 는 원래 실패한 refundId 가 아니라 <b>이번에 새로 만든 retry Refund 의 id</b>
+     * 를 쓴다. {@link CompensationGuard} 는 같은 (operation, businessKey) 가 FAILED 로 남으면
+     * 재호출 시 외부 호출 없이 캐시된 실패를 반환한다 — 원래 refundId 를 키로 쓰면 1차 재시도가
+     * PG 거절을 받은 뒤로는 2차 이후 재시도가 PG 를 다시 호출하지 못하고 stale 한 실패만 반환된다
+     * (운영자 재시도 endpoint 가 1회용이 되어버림). 재시도 1건마다 별도 Refund row 를 만드는 이
+     * 흐름에서는 그 새 row 의 id 가 곧 "이번 보상 시도" 의 고유 키이므로, 이를 businessKey 로
+     * 삼으면 매 재시도가 자기 compensation_log row 를 갖고 PG 를 실제로 다시 호출한다. ADR-0023
+     * 이 권장한 "FAILED 후 재시도는 새 키로" 정책과도 일치.</p>
+     */
     private static final String OP = "REFUND_RETRY";
 
     private final RefundRepository refunds;
@@ -57,7 +68,7 @@ public class RetryRefundService implements RetryRefundUseCase {
                 failedRefund.amount(), "RETRY: " + failedRefund.reason(), now);
         refunds.save(retry);
 
-        var outcome = compensationGuard.runOnce(OP, refundId.toString(), prev -> {
+        var outcome = compensationGuard.runOnce(OP, retry.id().toString(), prev -> {
             var result = pgClient.refund(new PgClient.RefundRequest(
                     trade.pgPaymentId(), retry.amount(), retry.reason()));
             if (result.approved()) {
