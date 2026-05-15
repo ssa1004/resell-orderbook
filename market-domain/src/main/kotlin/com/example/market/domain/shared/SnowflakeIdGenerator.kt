@@ -87,10 +87,23 @@ class SnowflakeIdGenerator(
             sequence
     }
 
+    /**
+     * 1ms 안에 sequence (4096개) 를 다 써서 다음 ms 로 넘어갈 때까지 잠깐 busy-wait.
+     *
+     * 정상적인 system clock 이라면 sub-millisecond 안에 [clock] 이 진행하므로 몇 번 돌지 않는다.
+     * 다만 진행하지 않는 clock (테스트의 고정 Clock, NTP step 직후 멈춤 등) 이 들어오면 무한 루프가
+     * 되므로 spin 횟수에 상한을 두고, 초과하면 예외로 빠르게 실패한다 — 이 클래스의 다른 시계 방어
+     * (clock backward tolerance) 와 같은 "silent hang 보단 빠른 실패" 정책.
+     */
     private fun waitNextMillis(currentLast: Long): Long {
         var t = clock.millis()
+        var spins = 0L
         while (t <= currentLast) {
             // busy-wait: 한 ms 도 안 되는 대기라 Thread.sleep 보다 정확.
+            check(++spins <= MAX_WAIT_SPINS) {
+                "Clock 이 진행하지 않습니다 — waitNextMillis 가 ${MAX_WAIT_SPINS}회 spin 후에도 " +
+                    "${currentLast}ms 를 넘지 못했습니다. clock=${clock.javaClass.name}"
+            }
             t = clock.millis()
         }
         return t
@@ -111,6 +124,12 @@ class SnowflakeIdGenerator(
 
         /** 시계가 이 이상 뒤로 가면 silent corruption 위험이 더 크므로 예외. (10s) */
         private const val CLOCK_BACKWARD_TOLERANCE_MS: Long = 10_000L
+
+        /**
+         * [waitNextMillis] busy-wait 의 spin 상한. 정상 clock 은 sub-millisecond 안에 진행하므로
+         * 이 횟수면 한참 여유 — 초과는 clock 이 멈춰 있다는 신호이므로 예외로 빠르게 실패.
+         */
+        private const val MAX_WAIT_SPINS: Long = 10_000_000L
 
         /** 디코딩 — 모니터링 / 로그 분석용. */
         @JvmStatic

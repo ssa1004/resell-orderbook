@@ -70,22 +70,42 @@ class SnowflakeIdGeneratorTest {
 
     @Test
     void fullSequenceWaitsForNextMs() {
-        // 시계가 처음 200번 호출 동안은 고정, 이후 호출부터는 +1ms 씩 진행하는 가짜 Clock.
-        AdvancingClock clock = new AdvancingClock(FIXED);
+        // 같은 ms 에서 4096개 (sequence 한도) 를 다 쓰면 4097번째 호출이 waitNextMillis 로
+        // 다음 ms 를 기다린다. TickOnReadClock 은 그 busy-wait 동안 millis() 가 읽힐 때마다
+        // 1ms 씩 진행하므로 spin 이 자연스럽게 풀린다.
+        TickOnReadClock clock = new TickOnReadClock(FIXED);
         SnowflakeIdGenerator gen = new SnowflakeIdGenerator(0, clock);
 
-        // 4096 번 같은 ms 에서 호출 → 마지막 호출은 sequence overflow 로 다음 ms 대기.
         long firstTs = SnowflakeIdGenerator.timestampOf(gen.nextId()).toEpochMilli();
-        for (int i = 1; i < 4096; i++) {
+        for (int i = 1; i < 4096; i++) {       // 같은 ms 에서 sequence 0..4095 소진
             gen.nextId();
         }
-        // 다음 호출은 새로운 ms 를 강제 — Clock 의 advance() 로 1ms 진행시켜야 시뮬레이션 가능.
-        clock.advance(Duration.ofMillis(1));
+
+        // 4097번째 — sequence overflow → waitNextMillis 진입. 여기서 clock 이 진행해야 한다.
+        clock.startTicking();
         long overflowed = gen.nextId();
         long overflowedTs = SnowflakeIdGenerator.timestampOf(overflowed).toEpochMilli();
 
         assertThat(overflowedTs).isEqualTo(firstTs + 1);
         assertThat(SnowflakeIdGenerator.sequenceOf(overflowed)).isEqualTo(0L);
+    }
+
+    @Test
+    void fullSequenceWithFrozenClock_failsFastInsteadOfHanging() {
+        // 진행하지 않는 Clock — sequence overflow 후 waitNextMillis 가 무한 spin 하면 CI 가
+        // 영원히 멈춘다. spin 상한을 둬 빠르게 예외로 떨어지는지 검증.
+        Clock frozen = Clock.fixed(FIXED, ZoneOffset.UTC);
+        SnowflakeIdGenerator gen = new SnowflakeIdGenerator(0, frozen);
+
+        for (int i = 0; i < 4095; i++) {       // sequence 0..4094 소진
+            gen.nextId();
+        }
+        // 4096번째 호출에서 sequence 가 4095 → overflow 직전. 4097번째가 waitNextMillis 진입.
+        gen.nextId();                          // sequence = 4095
+
+        assertThatThrownBy(gen::nextId)        // overflow → waitNextMillis → 고정 clock → 상한 초과
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("진행하지 않");
     }
 
     @Test
@@ -175,6 +195,53 @@ class SnowflakeIdGeneratorTest {
         @Override
         public long millis() {
             return now.toEpochMilli();
+        }
+    }
+
+    /**
+     * startTicking() 전에는 고정. startTicking() 후에는 millis() 가 읽힐 때마다 1ms 진행하되,
+     * 진행은 *두 번째* 읽기부터 — 첫 읽기는 고정값 그대로 반환한다.
+     *
+     * <p>이렇게 해야 sequence overflow 직후 nextId() 의 첫 clock.millis() 가 lastTimestamp 와
+     * 같게 나와 waitNextMillis 로 진입하고 (= 그 경로를 실제로 검증), waitNextMillis 안의
+     * busy-wait 읽기에서는 시각이 진행해 spin 이 자연스럽게 풀린다.</p>
+     */
+    static final class TickOnReadClock extends Clock {
+        private final long baseMillis;
+        private boolean ticking;
+        private long reads;
+
+        TickOnReadClock(Instant start) {
+            this.baseMillis = start.toEpochMilli();
+        }
+
+        void startTicking() {
+            this.ticking = true;
+            this.reads = 0;
+        }
+
+        @Override
+        public ZoneOffset getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return Instant.ofEpochMilli(millis());
+        }
+
+        @Override
+        public long millis() {
+            if (!ticking) {
+                return baseMillis;
+            }
+            // 첫 읽기(reads==0)는 base, 이후 읽기마다 +1ms.
+            return baseMillis + (reads++);
         }
     }
 }
