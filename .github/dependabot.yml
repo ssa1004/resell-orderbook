@@ -1,0 +1,41 @@
+# Dependabot — 의존성 / GitHub Actions 업데이트 PR 자동 생성.
+#
+# gradle: 멀티모듈 빌드라도 directory "/" 하나로 루트 build.gradle.kts + 각 모듈
+#   build.gradle.kts + gradle-wrapper 까지 한 번에 스캔된다 (version catalog 는 미사용).
+# github-actions: ci.yml / codeql.yml 의 actions/* 핀 버전을 갱신.
+#
+# 주기는 weekly — patch 가 매일 쏟아져 PR noise 가 되지 않게. 한 번에 열리는 PR 수도 제한.
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Spring 생태계는 BOM 으로 버전이 묶여 움직이므로 한 PR 로 모은다.
+      spring:
+        patterns:
+          - "org.springframework*"
+          - "io.spring.*"
+      # Kotlin 플러그인 / stdlib 도 함께 올라가야 컴파일이 맞는다.
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"
