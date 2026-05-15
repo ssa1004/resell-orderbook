@@ -3,7 +3,7 @@
 [![CI](https://github.com/ssa1004/bid-ask-marketplace/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ssa1004/bid-ask-marketplace/actions/workflows/ci.yml)
 [![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.13-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 한정판 리셀 마켓의 백엔드입니다. 같은 상품에 들어온 판매 호가(ASK)와 구매 호가(BID)를
@@ -15,8 +15,8 @@
 
 ## 기술 스택
 
-- **Language**: Java 21, Kotlin (adapter-in 모듈)
-- **Framework**: Spring Boot 3.4.5, Spring Modulith, Spring Batch
+- **Language**: Java 21, Kotlin 2.0 (도메인 + adapter-in 모듈은 Kotlin, 나머지는 Java)
+- **Framework**: Spring Boot 3.4.13, Spring Modulith, Spring Batch
 - **Database**: PostgreSQL 16, Redis
 - **Messaging**: Apache Kafka
 - **Security**: Spring Security (OAuth2 Resource Server, JWT)
@@ -119,7 +119,7 @@ Spring Modulith 가 모듈 간 의존 방향을 빌드 시점에 검증합니다
 graph LR
     in[market-adapter-in<br/>REST + WebSocket + Kafka<br/>Kotlin]
     app[market-application<br/>유스케이스 + 포트]
-    domain[market-domain<br/>도메인 모델 + 매칭 엔진]
+    domain[market-domain<br/>도메인 모델 + 매칭 엔진<br/>Kotlin]
     out[market-adapter-out<br/>JPA + Outbox + PG]
     batch[market-batch<br/>Spring Batch]
     boot[market-bootstrap<br/>Boot main + Flyway]
@@ -135,7 +135,7 @@ graph LR
 
 | 모듈 | 책임 |
 |---|---|
-| `market-domain` | 순수 도메인 모델 (Spring 런타임 의존성 없음). 매칭 엔진, 거래 상태머신, 수수료 계산 |
+| `market-domain` | 순수 도메인 모델 (Spring 런타임 의존성 없음). 매칭 엔진, 거래 상태머신, 수수료 계산 (Kotlin) |
 | `market-application` | 유스케이스, 외부 포트 인터페이스 |
 | `market-adapter-in` | REST 컨트롤러, WebSocket, Kafka Saga 컨슈머 (Kotlin) |
 | `market-adapter-out` | JPA, Outbox, Redis, 외부 PG 클라이언트, S3 |
