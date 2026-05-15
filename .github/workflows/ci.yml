@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - name: Build + test (excluding e2e)
         run: ./gradlew test -x :e2e-tests:test --no-daemon
@@ -34,7 +34,7 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - name: e2e (Postgres Testcontainer)
         run: ./gradlew :e2e-tests:test --no-daemon
@@ -53,7 +53,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - run: ./gradlew compileJava compileKotlin --no-daemon
 
@@ -65,7 +65,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - name: Build bootJar
         run: ./gradlew :market-bootstrap:bootJar --no-daemon
