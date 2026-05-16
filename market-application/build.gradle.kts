@@ -1,6 +1,8 @@
 // Use Cases + Outbound Ports. Spring stereotype + transaction 만 허용.
 plugins {
     `java-library`
+    kotlin("jvm")
+    kotlin("plugin.spring")
 }
 
 dependencies {
@@ -12,4 +14,11 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.assertj:assertj-core")
+}
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
 }
