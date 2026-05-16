@@ -80,8 +80,8 @@ class MarketDataController(
         val page = marketData.ticksAfter(SkuId.of(skuId), Cursor.of(cursor ?: ""), limit)
         return ResponseEntity.ok(
             CursorPageResponse(
-                items = page.items().map(PriceTickView::from),
-                nextCursor = page.nextCursor().getOrNull()?.token(),
+                items = page.items.map(PriceTickView::from),
+                nextCursor = page.nextCursor().getOrNull()?.token,
             )
         )
     }

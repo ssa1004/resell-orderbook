@@ -55,7 +55,7 @@ class TradeLifecycleController(
         @Valid @RequestBody req: RecordSellerShippingRequest,
     ): ResponseEntity<Void> {
         val caller = callerExtractor.from(jwt)
-        recordSellerShipping.recordShipping(req.toCommand(caller.userId(), TradeId.of(id)))
+        recordSellerShipping.recordShipping(req.toCommand(caller.userId, TradeId.of(id)))
         return ResponseEntity.noContent().build()
     }
 
@@ -66,7 +66,7 @@ class TradeLifecycleController(
         @PathVariable id: String,
     ): TradeResponse {
         val caller = callerExtractor.from(jwt)
-        val trade = completeTrade.complete(CompleteTradeCommand(caller.userId(), TradeId.of(id)))
+        val trade = completeTrade.complete(CompleteTradeCommand(caller.userId, TradeId.of(id)))
         return TradeResponse.from(trade)
     }
 
@@ -86,7 +86,7 @@ class TradeLifecycleController(
         val caller = callerExtractor.from(jwt)
         val trade = trades.findById(TradeId.of(id))
             .orElseThrow { TradeNotFoundException(TradeId.of(id)) }
-        val callerId = caller.userId()
+        val callerId = caller.userId
         if (callerId != trade.buyerId && callerId != trade.sellerId) {
             throw UnauthorizedTradeOperationException(trade.id, callerId, "read")
         }
@@ -108,10 +108,10 @@ class TradeLifecycleController(
         @RequestParam(defaultValue = "20") @Min(1) @Max(100) limit: Int,
     ): CursorPageResponse<TradeResponse> {
         val caller = callerExtractor.from(jwt)
-        val page = tradeHistory.historyOf(caller.userId(), Cursor.of(cursor ?: ""), limit)
+        val page = tradeHistory.historyOf(caller.userId, Cursor.of(cursor ?: ""), limit)
         return CursorPageResponse(
-            items = page.items().map { TradeResponse.from(it) },
-            nextCursor = page.nextCursor().getOrNull()?.token(),
+            items = page.items.map { TradeResponse.from(it) },
+            nextCursor = page.nextCursor().getOrNull()?.token,
         )
     }
 }

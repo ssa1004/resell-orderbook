@@ -130,8 +130,8 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
 
     @ExceptionHandler(PgFailureException::class)
     fun handlePgFailure(e: PgFailureException): ResponseEntity<ErrorResponse> {
-        log.warn("PG failure: code={} msg={}", e.errorCode(), e.message)
-        return body(HttpStatus.SERVICE_UNAVAILABLE, e.errorCode(), e.message ?: "PG failure")
+        log.warn("PG failure: code={} msg={}", e.errorCode, e.message)
+        return body(HttpStatus.SERVICE_UNAVAILABLE, e.errorCode, e.message ?: "PG failure")
     }
 
     @ExceptionHandler(Exception::class)

@@ -93,7 +93,7 @@ class RateLimitInterceptor(
         val auth = SecurityContextHolder.getContext().authentication
         val jwt = auth?.principal as? Jwt
         return try {
-            callerExtractor.from(jwt).userId().value
+            callerExtractor.from(jwt).userId.value
         } catch (_: Exception) {
             // jwt 비활성 / 익명 — IP 로 fallback (anonymous 동안 한 사람이 모든 토큰을 다 쓰지 않게).
             "anon-" + clientIp(request)

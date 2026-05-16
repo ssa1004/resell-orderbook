@@ -66,7 +66,7 @@ class InspectionController(
         @Valid @RequestBody req: RecordInspectionResultRequest,
     ): InspectionRequestResponse {
         val caller = callerExtractor.from(jwt)
-        val request = recordResult.record(req.toCommand(caller.userId(), InspectionRequestId.of(id)))
+        val request = recordResult.record(req.toCommand(caller.userId, InspectionRequestId.of(id)))
         return InspectionRequestResponse.from(request)
     }
 

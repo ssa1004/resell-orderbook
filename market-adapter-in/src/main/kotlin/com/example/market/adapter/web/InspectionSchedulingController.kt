@@ -109,7 +109,7 @@ class InspectionSchedulingController(
         @PathVariable id: String,
     ): ResponseEntity<Void> {
         val caller = callerExtractor.from(jwt)
-        lifecycle.cancel(caller.userId(), AppointmentId.of(id))
+        lifecycle.cancel(caller.userId, AppointmentId.of(id))
         return ResponseEntity.noContent().build()
     }
 

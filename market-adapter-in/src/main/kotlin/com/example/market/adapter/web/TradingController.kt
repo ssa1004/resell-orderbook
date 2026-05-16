@@ -72,7 +72,7 @@ class TradingController(
         @Valid @RequestBody req: PlaceListingRequest,
     ): ResponseEntity<PlaceListingResponse> {
         val caller = callerExtractor.from(jwt)
-        val result = placeListing.place(req.toCommand(idempotencyKey, caller.userId()))
+        val result = placeListing.place(req.toCommand(idempotencyKey, caller.userId))
         val body = PlaceListingResponse(
             listingId = result.listingId().toString(),
             matchedTradeId = result.matchedTradeId().getOrNull()?.toString(),
@@ -87,7 +87,7 @@ class TradingController(
         @PathVariable id: String,
     ): ResponseEntity<Void> {
         val caller = callerExtractor.from(jwt)
-        cancelListing.cancel(CancelListingCommand(caller.userId(), ListingId.of(id)))
+        cancelListing.cancel(CancelListingCommand(caller.userId, ListingId.of(id)))
         return ResponseEntity.noContent().build()
     }
 
@@ -102,7 +102,7 @@ class TradingController(
         @Valid @RequestBody req: PlaceBidRequest,
     ): ResponseEntity<PlaceBidResponse> {
         val caller = callerExtractor.from(jwt)
-        val result = placeBid.place(req.toCommand(idempotencyKey, caller.userId()))
+        val result = placeBid.place(req.toCommand(idempotencyKey, caller.userId))
         val body = PlaceBidResponse(
             bidId = result.bidId().toString(),
             matchedTradeId = result.matchedTradeId().getOrNull()?.toString(),
@@ -117,7 +117,7 @@ class TradingController(
         @PathVariable id: String,
     ): ResponseEntity<Void> {
         val caller = callerExtractor.from(jwt)
-        cancelBid.cancel(CancelBidCommand(caller.userId(), BidId.of(id)))
+        cancelBid.cancel(CancelBidCommand(caller.userId, BidId.of(id)))
         return ResponseEntity.noContent().build()
     }
 
@@ -132,7 +132,7 @@ class TradingController(
         @Valid @RequestBody req: InstantTradeRequest,
     ): ResponseEntity<TradeResponse> {
         val caller = callerExtractor.from(jwt)
-        val trade = buyNow.buyNow(req.toBuyNowCommand(idempotencyKey, caller.userId()))
+        val trade = buyNow.buyNow(req.toBuyNowCommand(idempotencyKey, caller.userId))
         return ResponseEntity.created(URI.create("/api/v1/trades/${trade.id}"))
             .body(TradeResponse.from(trade))
     }
@@ -146,7 +146,7 @@ class TradingController(
         @Valid @RequestBody req: InstantTradeRequest,
     ): ResponseEntity<TradeResponse> {
         val caller = callerExtractor.from(jwt)
-        val trade = sellNow.sellNow(req.toSellNowCommand(idempotencyKey, caller.userId()))
+        val trade = sellNow.sellNow(req.toSellNowCommand(idempotencyKey, caller.userId))
         return ResponseEntity.created(URI.create("/api/v1/trades/${trade.id}"))
             .body(TradeResponse.from(trade))
     }
