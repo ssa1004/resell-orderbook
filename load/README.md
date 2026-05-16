@@ -251,11 +251,26 @@ concurrent-match
 `match_invariant_violation` 이 1 이상이면 advisory lock 또는 SKIP LOCKED 로직이 깨진
 신호 — `application/matching/` 의 동시성 검증 + e2e-tests 의 race 테스트를 다시 본다.
 
+## Prometheus remote-write 연동 (commerce-ops 통합 대시보드)
+
+5 시나리오 결과를 `commerce-ops` 의 Prometheus 로 흘려보내 한 Grafana 대시보드에서
+client load + server actuator 를 같이 보고 싶을 때:
+
+```bash
+docker compose -f /path/to/commerce-ops/infra/docker-compose.yml up -d prometheus grafana
+
+export K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write
+./scripts/run-load.sh
+```
+
+`run-load.sh` 가 각 시나리오에 `service=resell-orderbook` / `scenario=<name>` tag 를
+자동 부여한다. Grafana → **Portfolio Load (k6 + actuator)** 대시보드 (uid
+`portfolio-load`) 에서 service 변수를 `resell-orderbook` 으로 선택. 10번 패널
+"matched_count" 와 매칭 엔진 advisory lock 대기 분포 (Micrometer Timer) 가 같은
+시간축에 잡혀 p99 spike 가 lock 대기 때문인지 GC 때문인지 한 화면에서 구분된다.
+필요 k6 버전 **0.42+** (experimental-prometheus-rw output).
+
 ## 더 나아가려면
 
-- 결과를 Grafana 대시보드에 plot: k6 → Prometheus remote-write
-  `--out experimental-prometheus-rw=http://prom:9090/api/v1/write`
-- 매칭 엔진의 advisory lock 대기 분포를 Micrometer Timer 로 노출 → Prometheus 로 가져와
-  k6 결과와 같은 시계열에 겹쳐서 본다 (p99 spike 가 lock 대기 때문인지 GC 때문인지 구분).
 - 더 큰 부하는 k6 cloud / k6 distributed mode — 본 시나리오는 single-node 200 VU 선에서
   운용한다.
