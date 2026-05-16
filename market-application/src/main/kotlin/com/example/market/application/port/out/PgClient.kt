@@ -38,7 +38,7 @@ interface PgClient {
     }
 
     @JvmRecord
-    data class RefundRequest(val pgPaymentId: String, val amount: Money, val reason: String)
+    data class RefundRequest(val pgPaymentId: String, val amount: Money, val reason: String?)
 
     @JvmRecord
     data class RefundResult(

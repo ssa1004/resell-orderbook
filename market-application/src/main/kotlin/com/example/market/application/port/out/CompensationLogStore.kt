@@ -33,8 +33,8 @@ interface CompensationLogStore {
     fun complete(
         operation: String,
         businessKey: String,
-        responseCode: String,
-        responseMessage: String,
+        responseCode: String?,
+        responseMessage: String?,
         externalId: String?,
         now: Instant,
     )
@@ -43,8 +43,8 @@ interface CompensationLogStore {
     fun fail(
         operation: String,
         businessKey: String,
-        responseCode: String,
-        responseMessage: String,
+        responseCode: String?,
+        responseMessage: String?,
         now: Instant,
     )
 

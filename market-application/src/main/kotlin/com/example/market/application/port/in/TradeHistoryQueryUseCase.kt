@@ -15,9 +15,9 @@ import com.example.market.domain.trading.Trade
 interface TradeHistoryQueryUseCase {
 
     /**
-     * @param userId 거래 내역을 볼 사용자 (구매 또는 판매)
+     * @param userId 거래 내역을 볼 사용자 (구매 또는 판매). null 시 IllegalArgumentException (Java 호환).
      * @param after  이전 페이지의 nextCursor (null/empty 면 첫 페이지)
      * @param limit  한 페이지 크기 (1 ~ 100)
      */
-    fun historyOf(userId: UserId, after: Cursor, limit: Int): CursorPage<Trade>
+    fun historyOf(userId: UserId?, after: Cursor, limit: Int): CursorPage<Trade>
 }
