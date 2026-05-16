@@ -107,11 +107,11 @@ data class OrderBookView(
 ) {
     companion object {
         fun from(v: OrderBookQueryUseCase.OrderBookView): OrderBookView = OrderBookView(
-            skuId = v.skuId().toString(),
-            lowestAsk = v.lowestAsk().getOrNull()?.amount?.toLong(),
-            highestBid = v.highestBid().getOrNull()?.amount?.toLong(),
-            asks = v.asks().map { PriceLevel(it.price().amount.toLong(), it.count()) },
-            bids = v.bids().map { PriceLevel(it.price().amount.toLong(), it.count()) },
+            skuId = v.skuId.toString(),
+            lowestAsk = v.lowestAsk.getOrNull()?.amount?.toLong(),
+            highestBid = v.highestBid.getOrNull()?.amount?.toLong(),
+            asks = v.asks.map { PriceLevel(it.price.amount.toLong(), it.count) },
+            bids = v.bids.map { PriceLevel(it.price.amount.toLong(), it.count) },
         )
     }
 }

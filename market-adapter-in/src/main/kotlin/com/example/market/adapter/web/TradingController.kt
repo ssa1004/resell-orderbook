@@ -74,10 +74,10 @@ class TradingController(
         val caller = callerExtractor.from(jwt)
         val result = placeListing.place(req.toCommand(idempotencyKey, caller.userId))
         val body = PlaceListingResponse(
-            listingId = result.listingId().toString(),
-            matchedTradeId = result.matchedTradeId().getOrNull()?.toString(),
+            listingId = result.listingId.toString(),
+            matchedTradeId = result.matchedTradeId.getOrNull()?.toString(),
         )
-        return ResponseEntity.created(URI.create("/api/v1/listings/${result.listingId()}")).body(body)
+        return ResponseEntity.created(URI.create("/api/v1/listings/${result.listingId}")).body(body)
     }
 
     @DeleteMapping("/listings/{id}")
@@ -104,10 +104,10 @@ class TradingController(
         val caller = callerExtractor.from(jwt)
         val result = placeBid.place(req.toCommand(idempotencyKey, caller.userId))
         val body = PlaceBidResponse(
-            bidId = result.bidId().toString(),
-            matchedTradeId = result.matchedTradeId().getOrNull()?.toString(),
+            bidId = result.bidId.toString(),
+            matchedTradeId = result.matchedTradeId.getOrNull()?.toString(),
         )
-        return ResponseEntity.created(URI.create("/api/v1/bids/${result.bidId()}")).body(body)
+        return ResponseEntity.created(URI.create("/api/v1/bids/${result.bidId}")).body(body)
     }
 
     @DeleteMapping("/bids/{id}")
