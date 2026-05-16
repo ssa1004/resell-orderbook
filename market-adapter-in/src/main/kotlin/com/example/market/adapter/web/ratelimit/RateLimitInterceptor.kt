@@ -54,9 +54,9 @@ class RateLimitInterceptor(
 
         response.setHeader(HEADER_LIMIT, annotation.capacity.toString())
 
-        if (!decision.allowed()) {
+        if (!decision.allowed) {
             // RFC 7231 의 Retry-After: delta-seconds 형태 (초 단위). retry_after_ms 는 올림.
-            val retrySec = (decision.retryAfter().toMillis() + 999L) / 1000L
+            val retrySec = (decision.retryAfter.toMillis() + 999L) / 1000L
             response.setHeader(HEADER_RETRY_AFTER, retrySec.toString())
             response.setHeader(HEADER_REMAINING, "0")
             response.status = 429   // HttpStatus.TOO_MANY_REQUESTS
@@ -66,11 +66,11 @@ class RateLimitInterceptor(
                     """"detail":"rate limit exceeded — retry after ${retrySec}s",""" +
                     """"retryAfterSec":$retrySec}""",
             )
-            log.info("rate limit 차단 key={} retryAfter={}ms", key, decision.retryAfter().toMillis())
+            log.info("rate limit 차단 key={} retryAfter={}ms", key, decision.retryAfter.toMillis())
             return false
         }
 
-        response.setHeader(HEADER_REMAINING, decision.remaining().toString())
+        response.setHeader(HEADER_REMAINING, decision.remaining.toString())
         return true
     }
 
