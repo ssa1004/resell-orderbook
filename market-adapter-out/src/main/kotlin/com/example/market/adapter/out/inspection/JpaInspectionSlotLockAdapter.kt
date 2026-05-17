@@ -51,7 +51,7 @@ class JpaInspectionSlotLockAdapter : InspectionSlotLockPort {
          * 시도만 같은 락 위에서 줄을 선다.
          */
         @JvmStatic
-        internal fun lockKey(centerId: InspectionCenterId, slotStart: Instant): Long {
+        fun lockKey(centerId: InspectionCenterId, slotStart: Instant): Long {
             val id = centerId.value
             var h = mix(id.mostSignificantBits)
             h = mix(h xor id.leastSignificantBits)

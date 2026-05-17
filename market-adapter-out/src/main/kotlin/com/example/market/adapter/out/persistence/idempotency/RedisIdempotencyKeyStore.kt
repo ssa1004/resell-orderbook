@@ -15,9 +15,9 @@ import java.time.Duration
  */
 @Component
 @ConditionalOnProperty(name = ["market.cache.redis-enabled"], havingValue = "true")
-class RedisIdempotencyKeyStore(
+class RedisIdempotencyKeyStore @JvmOverloads constructor(
     private val redis: StringRedisTemplate,
-    @Value("\${market.idempotency.ttl-hours:24}") private val ttlHours: Long,
+    @Value("\${market.idempotency.ttl-hours:24}") private val ttlHours: Long = 24L,
 ) : IdempotencyKeyStore {
 
     override fun acquireOrThrow(key: String) {
