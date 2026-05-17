@@ -3,11 +3,13 @@ plugins {
     `java-library`
     kotlin("jvm")
     kotlin("plugin.spring")
+    kotlin("plugin.jpa")
 }
 
 dependencies {
     implementation(project(":market-application"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
     compileOnly("org.springframework.modulith:spring-modulith-api")
 
     // Persistence (write — JPA)
@@ -48,6 +50,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("com.redis:testcontainers-redis:2.2.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
 }
 
 kotlin {

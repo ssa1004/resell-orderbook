@@ -1,11 +1,14 @@
 // Spring Batch — 만료 ASK/BID 정리, 일일 정산, 검수 SLA 모니터링
 plugins {
     `java-library`
+    kotlin("jvm")
+    kotlin("plugin.spring")
 }
 
 dependencies {
     implementation(project(":market-application"))
     implementation(project(":market-adapter-out"))
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
 
     implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -16,4 +19,11 @@ dependencies {
 
     runtimeOnly("com.h2database:h2")
     runtimeOnly("org.postgresql:postgresql")
+}
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
 }
