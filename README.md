@@ -243,6 +243,78 @@ BASE_URL=http://localhost:8080 ./scripts/run-load.sh    # 5 시나리오 일괄
 - OAuth2 Resource Server (JWT 토큰을 검증해 사용자를 식별하는 표준) 인증 (dev 는 모두 통과
   + `X-User-Id` 헤더로 사용자 흉내)
 - Outbox Relay (DB 에 쌓인 미발행 이벤트를 주기적으로 Kafka 로 보내는 컴포넌트) 활성화
+- DLQ 관리 콘솔 (ADR-0028) 의 Kafka DLT listener 활성화
+
+## 운영 가이드 — DLQ 관리 콘솔 (ADR-0028)
+
+거래 saga 가 외부 의존 (PG / 검수센터 / 은행) 장애로 stuck 되었을 때, 운영자가 콘솔에서
+조회 / 단건 replay / 단건 discard / 대량 처리를 할 수 있습니다. 모든 endpoint 는
+`hasRole('ADMIN')` + scope 별 rate limit (read 120 / write 60 / bulk 10 per min) 이 적용
+되고, replay / discard 는 actor / reason / tradeId / skuId 가 audit 에 기록됩니다.
+
+### 자주 쓰는 curl 예시
+
+```bash
+# 1) 최근 1시간 REFUND 흐름 stuck 메시지 목록 (특정 SKU)
+curl -H "Authorization: Bearer $TOKEN" \
+  "$HOST/api/v1/admin/dlq?source=REFUND&skuId=sku-popular&size=20"
+
+# 2) 단건 상세 (payload + stack trace + Kafka 메타)
+curl -H "Authorization: Bearer $TOKEN" \
+  "$HOST/api/v1/admin/dlq/msg-123"
+
+# 3) 단건 replay — 원래 토픽으로 재발행
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
+  "$HOST/api/v1/admin/dlq/msg-123/replay"
+
+# 4) 단건 discard — reason 필수
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"obsolete after PG migration"}' \
+  "$HOST/api/v1/admin/dlq/msg-123/discard"
+
+# 5) bulk replay — confirm 빠지면 항상 dry-run (영향 범위만 반환)
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"REFUND","skuId":"sku-popular"}' \
+  "$HOST/api/v1/admin/dlq/bulk-replay"
+# → { "mode": "DRY_RUN", "matched": 42, "sample": [...] }
+
+# 6) bulk replay — 위 dry-run 확인 후 confirm
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"REFUND","skuId":"sku-popular","confirm":true}' \
+  "$HOST/api/v1/admin/dlq/bulk-replay"
+# → { "mode": "QUEUED", "id": "job-uuid", "status": "QUEUED", ... }
+
+# 7) 작업 폴링
+curl -H "Authorization: Bearer $TOKEN" \
+  "$HOST/api/v1/admin/dlq/bulk-jobs/job-uuid"
+
+# 8) 통계 — 최근 1시간을 15분 bucket 으로, 상위 10 SKU
+curl -H "Authorization: Bearer $TOKEN" \
+  "$HOST/api/v1/admin/dlq/stats?from=2026-05-17T09:00:00Z&to=2026-05-17T10:00:00Z&bucket=PT15M&topSku=10"
+```
+
+### 운영 사고 대응 흐름 (PG 응답 지연 예시)
+
+1. 모니터링이 `dlq.refund.count` 증가 알림 → `/admin/dlq/stats` 호출 → `bySku[0]` 가
+   `sku-popular`, `byErrorType[0]` 가 `PgFailureException` 확인.
+2. PG 벤더의 status page 확인 → 복구 시간 안내 받음.
+3. PG 복구 확인 후 `POST /admin/dlq/bulk-replay { source: REFUND, skuId: "sku-popular" }`
+   를 confirm 없이 호출 — dry-run 으로 `matched` 수 (예: 42 건) 확인.
+4. 의도가 맞으면 `confirm: true` 로 다시 호출 — `jobId` 받음.
+5. `/admin/dlq/bulk-jobs/{jobId}` 폴링 — `status=SUCCEEDED`, `successCount=42`, `failureCount=0`
+   확인. 실패가 있으면 `firstError` 와 함께 다음 조치.
+
+### 안전 장치 요약
+
+- bulk 는 항상 dry-run 강제 — `confirm=true` 가 명시되어야만 실제 처리.
+- discard 는 reason 필수 — soft delete + retention 기간 후 auto-purge.
+- 같은 trade 의 환불이 두 번 일어나지 않는 보장은 ADR-0023 의 compensation_log 가 책임.
+- replay 시 trade 의 도메인 상태 체크가 use case 안에 있어 이미 진행된 step 은 멱등 처리.
 
 ## 인프라
 

@@ -31,3 +31,4 @@
 | [0025](0025-cursor-based-pagination.md) | Cursor-based pagination — OFFSET 의 뒷페이지 절벽 회피 | 적용 |
 | [0026](0026-retry-with-exponential-backoff-and-jitter.md) | 외부 호출 retry — exponential backoff + jitter | 적용 |
 | [0027](0027-graceful-shutdown-and-startup-probe.md) | K8s rolling restart 트래픽 손실 0 — graceful shutdown + startup probe + preStop | 적용 |
+| [0028](0028-dlq-admin-api.md) | DLQ 관리 콘솔 백엔드 API (source / bySku / dry-run 강제) | 적용 |

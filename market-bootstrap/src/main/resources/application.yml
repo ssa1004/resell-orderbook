@@ -125,6 +125,25 @@ market:
       batch-size: 100            # 한 번 폴링에 처리할 최대 행 수
       send-timeout-ms: 5000      # Kafka send 의 Future.get 타임아웃 (브로커 ack 기다리는 시간)
       topic-prefix: "market."    # eventType 앞에 붙이는 토픽 접두사 (예: "market.trademathched")
+  dlq:
+    # 운영자 DLQ 콘솔 (ADR-0028). dev 는 in-memory store 기본 — 인스턴스 재시작 시 데이터
+    # lost. prod 는 Kafka DLT listener 기반 (KafkaDlqMessageStore 후속).
+    store:
+      kafka:
+        enabled: false           # prod 진입 시 true — KafkaDlqMessageStore 활성화 + InMemory 자동 비활성
+  admin:
+    # admin 콘솔 (DLQ 등) 전용 rate limit (ADR-0028). scope 별 분당 RPS — read 가장 관대,
+    # bulk 가장 엄격 (잘못된 bulk 호출의 폭발 반경이 크다).
+    ratelimit:
+      read:
+        capacity: 120
+        refill-per-min: 120
+      write:
+        capacity: 60
+        refill-per-min: 60
+      bulk:
+        capacity: 10
+        refill-per-min: 10
   trade:
     payment-ttl-minutes: 15
   fee:
@@ -293,5 +312,9 @@ market:
   outbox:
     relay:
       enabled: true
+  dlq:
+    store:
+      kafka:
+        enabled: true            # prod: KafkaDlqMessageStore (DLT listener + JPA) — dev 의 InMemory 와 자동 교체
   bulkhead:
     enabled: true
