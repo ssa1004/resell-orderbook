@@ -1,6 +1,10 @@
 package com.example.market.adapter.web.exception
 
 import com.example.market.adapter.web.dto.ErrorResponse
+import com.example.market.application.dlq.DlqAdminRateLimitedException
+import com.example.market.application.dlq.DlqBulkJobNotFoundException
+import com.example.market.application.dlq.DlqBulkValidationException
+import com.example.market.application.dlq.DlqMessageNotFoundException
 import com.example.market.application.exception.BidNotFoundException
 import com.example.market.application.exception.InspectionExceptions
 import com.example.market.application.exception.InspectionRequestNotFoundException
@@ -19,6 +23,7 @@ import com.example.market.domain.trading.ListingOwnershipViolation
 import io.micrometer.tracing.Tracer
 import jakarta.validation.ConstraintViolationException
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
@@ -53,9 +58,25 @@ class GlobalExceptionHandler(private val tracer: Tracer) {
         InspectionExceptions.AppointmentNotFoundException::class,
         PayoutNotFoundException::class,
         RefundNotFoundException::class,
+        DlqMessageNotFoundException::class,
+        DlqBulkJobNotFoundException::class,
     )
     fun handleNotFound(e: RuntimeException) =
         body(HttpStatus.NOT_FOUND, "NOT_FOUND", e.message ?: "not found")
+
+    /** DLQ bulk 요청 검증 실패 — discard 인데 reason 누락 등. */
+    @ExceptionHandler(DlqBulkValidationException::class)
+    fun handleDlqBulkValidation(e: DlqBulkValidationException) =
+        body(HttpStatus.BAD_REQUEST, "BAD_REQUEST", e.message ?: "bad request")
+
+    /** Admin DLQ rate limit 초과 — 429 + Retry-After. */
+    @ExceptionHandler(DlqAdminRateLimitedException::class)
+    fun handleDlqRateLimited(e: DlqAdminRateLimitedException): ResponseEntity<ErrorResponse> {
+        val traceId = tracer.currentSpan()?.context()?.traceId()
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .header(HttpHeaders.RETRY_AFTER, e.retryAfterSeconds.toString())
+            .body(ErrorResponse("RATE_LIMITED", e.message ?: "rate limited", traceId))
+    }
 
     /**
      * 검수 슬롯 capacity 초과 / 중복 예약 — 둘 다 다른 사용자(또는 같은 사용자의 중복 클릭)와의
