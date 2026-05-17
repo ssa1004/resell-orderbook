@@ -1,6 +1,8 @@
 // Spring Boot 진입점. main + 통합 config + Spring Modulith 검증.
 plugins {
     java
+    kotlin("jvm")
+    kotlin("plugin.spring")
     id("org.springframework.boot")
     id("io.spring.dependency-management")
 }
@@ -11,6 +13,9 @@ dependencies {
     implementation(project(":market-adapter-in"))
     implementation(project(":market-adapter-out"))
     implementation(project(":market-batch"))
+
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -37,6 +42,13 @@ dependencies {
     testImplementation("org.testcontainers:kafka")
     // Resilience4j retry / circuit-breaker — application.yml 의 instance 검증 테스트가 직접 사용
     testImplementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
+}
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
 }
 
 tasks.named("bootJar") {
