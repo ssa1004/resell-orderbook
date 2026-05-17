@@ -1,10 +1,13 @@
 // Outbound adapter — Persistence(JPA), OrderBook query, Redis, PG, Messaging(Kafka + Outbox), Storage(S3)
 plugins {
     `java-library`
+    kotlin("jvm")
+    kotlin("plugin.spring")
 }
 
 dependencies {
     implementation(project(":market-application"))
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
     compileOnly("org.springframework.modulith:spring-modulith-api")
 
     // Persistence (write — JPA)
@@ -44,4 +47,12 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("com.redis:testcontainers-redis:2.2.2")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+}
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll("-Xjsr305=strict")
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    }
 }

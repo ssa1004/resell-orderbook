@@ -19,6 +19,7 @@ import java.time.Clock
 import java.util.UUID
 import java.util.concurrent.Executor
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.stereotype.Service
 
 /**
@@ -43,7 +44,7 @@ open class DlqBulkAdminService(
     private val rateLimiter: AdminRateLimiter,
     private val audit: AuditLogPort,
     private val clock: Clock,
-    private val workerExecutor: Executor,
+    @Qualifier("dlqBulkWorkerExecutor") private val workerExecutor: Executor,
 ) : DlqBulkAdminUseCase {
 
     override fun bulkReplay(request: DlqBulkRequest): DlqBulkSubmission =
